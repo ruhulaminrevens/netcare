@@ -3,7 +3,7 @@
 #define MyAppPublisher "Ruhul Amin Revens"
 #define MyAppExeName "ruhul_netcare.exe"
 #define MyAppURL "https://github.com/ruhulaminrevens/netcare"
-#define SourceDir "build\windows\x64\runner\Release"
+#define SourceDir "..\..\build\windows\x64\runner\Release"
 
 [Setup]
 AppId={{A25E79D0-8634-4C66-9C0B-7AD0B4CD3B9D}

@@ -15,25 +15,18 @@ class SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: dark ? const Color(0xFF0D1B2A) : Colors.white,
+    return Material(
+      color: dark ? const Color(0xFF0D1B2A) : Colors.white,
+      elevation: dark ? 0 : 2,
+      shadowColor: const Color(0x200B2840),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
+        side: BorderSide(
           color: dark ? const Color(0xFF1D3448) : const Color(0xFFDCE8EC),
         ),
-        boxShadow: dark
-            ? null
-            : const [
-                BoxShadow(
-                  color: Color(0x100B2840),
-                  blurRadius: 24,
-                  offset: Offset(0, 8),
-                ),
-              ],
       ),
-      child: child,
+      child: Padding(padding: padding, child: child),
     );
   }
 }

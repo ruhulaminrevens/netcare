@@ -145,7 +145,9 @@ class SpeedTestService {
       request.headers.set(HttpHeaders.cacheControlHeader, 'no-cache');
       final response = await request.close().timeout(const Duration(seconds: 5));
       final body = await utf8.decoder.bind(response).join();
-      if (response.statusCode < 200 || response.statusCode >= 300) return const {};
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return const {};
+      }
       return jsonDecode(body) as Map<String, dynamic>;
     } on Exception {
       return const {};

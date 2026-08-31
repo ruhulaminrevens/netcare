@@ -248,7 +248,7 @@ class _CheckRow extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(
-        backgroundColor: color.withOpacity(.13),
+        backgroundColor: color.withValues(alpha: .13),
         child: Icon(
           check.reachable ? Icons.check_rounded : Icons.close_rounded,
           color: color,

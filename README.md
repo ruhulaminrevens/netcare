@@ -4,7 +4,7 @@ Ruhul NetCare is a privacy-first internet speed and local-network diagnostic app
 
 ## Downloads
 
-Download the latest public build from [GitHub Releases](https://github.com/ruhulaminrevens/ruhul-netcare/releases/latest).
+Download the latest public build from [GitHub Releases](https://github.com/ruhulaminrevens/netcare/releases/latest).
 
 - **Windows:** `Ruhul-NetCare-Setup-1.0.0-x64.exe`
 - **Android:** `Ruhul-NetCare-1.0.0-android.apk`

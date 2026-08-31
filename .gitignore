@@ -1,0 +1,30 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+build/
+coverage/
+
+# Generated platforms (CI creates these deterministically)
+android/.gradle/
+android/local.properties
+windows/flutter/ephemeral/
+
+# IDE/OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Signing material — never commit
+*.jks
+*.keystore
+key.properties
+signing.properties
+
+# Local-only private profiles and exported reports
+assets/profiles/private/
+reports/

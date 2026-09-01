@@ -57,7 +57,12 @@ class _HomeShellState extends State<HomeShell> {
 
   Future<void> _refreshNetwork() async {
     setState(() => _loadingNetwork = true);
-    final snapshot = await _diagnostics.inspect(profile: _profile);
+    var snapshot = await _diagnostics.inspect(profile: _profile);
+    final observation = await widget.storage.observePublicIp(
+      snapshot.publicInfo?.ip,
+      scope: '${_profile.name}:${snapshot.connectionKinds.map((kind) => kind.name).join('_')}',
+    );
+    snapshot = snapshot.withIpObservation(observation);
     if (!mounted) return;
     setState(() {
       _snapshot = snapshot;
@@ -144,7 +149,7 @@ class _HomeShellState extends State<HomeShell> {
           children: [
             Icon(Icons.monitor_heart_rounded, color: Color(0xFF31D6C4)),
             SizedBox(width: 10),
-            Text('Ruhul NetCare', style: TextStyle(fontWeight: FontWeight.w800)),
+            Text('RAR NetCare', style: TextStyle(fontWeight: FontWeight.w800)),
           ],
         ),
         actions: [

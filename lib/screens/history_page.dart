@@ -75,7 +75,13 @@ class HistoryPage extends StatelessWidget {
                                 style: const TextStyle(fontWeight: FontWeight.w800),
                               ),
                               const SizedBox(height: 3),
-                              Text('${result.isp ?? '—'} · ${result.server ?? '—'}'),
+                              Text(
+                                [
+                                  result.connectionType,
+                                  result.isp,
+                                  result.location,
+                                ].whereType<String>().where((value) => value.isNotEmpty).join(' · '),
+                              ),
                             ],
                           ),
                         ),
@@ -115,6 +121,15 @@ class HistoryPage extends StatelessWidget {
                           label: strings.t('jitter'),
                           value: '${result.jitterMs.toStringAsFixed(1)} ms',
                         ),
+                        _CompactMetric(
+                          label: strings.t('healthScore'),
+                          value: '${result.healthScore}/100',
+                        ),
+                        if (result.transferredMegabytes > 0)
+                          _CompactMetric(
+                            label: strings.t('dataTransferred'),
+                            value: '${result.transferredMegabytes.toStringAsFixed(1)} MB',
+                          ),
                       ],
                     ),
                   ],

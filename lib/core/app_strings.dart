@@ -19,17 +19,58 @@ class AppStrings {
     'download': ['ডাউনলোড', 'Download'],
     'upload': ['আপলোড', 'Upload'],
     'packetLoss': ['প্যাকেট লস', 'Packet loss'],
+    'requestLoss': ['রিকোয়েস্ট লস', 'Request loss'],
     'server': ['টেস্ট সার্ভার', 'Test server'],
     'provider': ['আইএসপি', 'ISP'],
     'publicIp': ['পাবলিক আইপি', 'Public IP'],
     'localIp': ['লোকাল আইপি', 'Local IP'],
     'gateway': ['গেটওয়ে/রাউটার', 'Gateway/router'],
+    'routerWanIp': ['রাউটারের WAN IP', 'Router WAN IP'],
     'dns': ['ডিএনএস', 'DNS'],
     'quick': ['কুইক', 'Quick'],
     'balanced': ['ব্যালান্সড', 'Balanced'],
     'deep': ['ডিপ', 'Deep'],
     'dataUse': ['আনুমানিক ডাটা ব্যবহার', 'Estimated data use'],
     'networkSnapshot': ['নেটওয়ার্ক অবস্থা', 'Network snapshot'],
+    'connection': ['সংযোগের ধরন', 'Connection'],
+    'mobileData': ['মোবাইল ডাটা', 'Mobile data'],
+    'wifi': ['ওয়াই-ফাই', 'Wi-Fi'],
+    'ethernet': ['ইথারনেট/LAN', 'Ethernet/LAN'],
+    'vpn': ['VPN', 'VPN'],
+    'otherConnection': ['অন্যান্য নেটওয়ার্ক', 'Other network'],
+    'noConnection': ['সংযোগ নেই', 'No connection'],
+    'ipVersion': ['আইপি ভার্সন', 'IP version'],
+    'asn': ['ASN', 'ASN'],
+    'organization': ['নেটওয়ার্ক প্রতিষ্ঠান', 'Network organization'],
+    'providerLocation': ['আইএসপি লোকেশন', 'ISP location'],
+    'timezone': ['টাইমজোন', 'Timezone'],
+    'ipAccess': ['পাবলিক/শেয়ার্ড আইপি', 'Public/shared IP'],
+    'ipStability': ['স্ট্যাটিক/ডাইনামিক অবস্থা', 'Static/dynamic status'],
+    'directPublic': ['সরাসরি পাবলিক আইপি', 'Direct public IP'],
+    'publicAtRouter': ['রাউটারে বাস্তব পাবলিক আইপি', 'Real public IP at router'],
+    'cgnatConfirmed': ['CGNAT/শেয়ার্ড আইপি নিশ্চিত', 'CGNAT/shared IP confirmed'],
+    'sharedLikely': ['শেয়ার্ড/ক্যারিয়ার NAT হওয়ার সম্ভাবনা', 'Shared/carrier NAT likely'],
+    'upstreamNatOrVpn': ['আপস্ট্রিম NAT/VPN শনাক্ত', 'Upstream NAT/VPN detected'],
+    'natUnverified': ['NAT—WAN IP দিয়ে যাচাই করুন', 'NAT—verify with router WAN IP'],
+    'firstObservation': ['প্রথম পর্যবেক্ষণ', 'First observation'],
+    'stableObserved': [
+      'এখন পর্যন্ত একই—ISP থেকে static নিশ্চিত করুন',
+      'Stable so far—confirm static status with ISP'
+    ],
+    'dynamicDetected': ['আইপি পরিবর্তন হয়েছে—ডাইনামিক', 'IP change detected—dynamic'],
+    'testFacts': ['বাস্তব টেস্ট তথ্য', 'Real test facts'],
+    'dataTransferred': ['ব্যবহৃত টেস্ট ডাটা', 'Test data transferred'],
+    'duration': ['ট্রান্সফার সময়', 'Transfer duration'],
+    'healthScore': ['নেটওয়ার্ক হেলথ', 'Network health'],
+    'actualDataNote': [
+      'Generated data সত্যিই download ও upload করে ফল মাপা হয়—এটি কোনো অনুমান নয়।',
+      'The result is measured by transferring generated download and upload data—not estimated.'
+    ],
+    'mobileDataWarning': [
+      'মোবাইল ডাটায় টেস্ট চলছে—নির্বাচিত mode অনুযায়ী ডাটা খরচ হবে।',
+      'Testing on mobile data will consume data for the selected mode.'
+    ],
+    'allLocalIps': ['সব লোকাল আইপি', 'All local IPs'],
     'refresh': ['রিফ্রেশ', 'Refresh'],
     'checking': ['পরীক্ষা চলছে…', 'Checking…'],
     'internet': ['ইন্টারনেট', 'Internet'],
@@ -66,8 +107,8 @@ class AppStrings {
     'darkMode': ['ডার্ক মোড', 'Dark mode'],
     'about': ['অ্যাপ সম্পর্কে', 'About'],
     'aboutBody': [
-      'Ruhul NetCare হলো Windows ও Android-এর জন্য privacy-first network diagnostic tool।',
-      'Ruhul NetCare is a privacy-first network diagnostic tool for Windows and Android.'
+      'RAR NetCare হলো Windows ও Android-এর জন্য privacy-first speed, IP intelligence ও network diagnostic tool।',
+      'RAR NetCare is a privacy-first speed, IP intelligence, and network diagnostic tool for Windows and Android.'
     ],
     'cancelled': ['টেস্ট বাতিল হয়েছে', 'Test cancelled'],
     'testFailed': ['টেস্ট সম্পন্ন হয়নি', 'Test failed'],
@@ -78,6 +119,10 @@ class AppStrings {
     'runAgain': ['আবার পরীক্ষা করুন', 'Run again'],
     'profileSaved': ['প্রোফাইল সংরক্ষিত হয়েছে', 'Profile saved'],
     'invalidPort': ['সঠিক port দিন', 'Enter a valid port'],
-    'version': ['সংস্করণ ১.০.০', 'Version 1.0.0'],
+    'wanHint': [
+      'Router Status পেইজের WAN IP দিলে CGNAT/shared বনাম real public IP নির্ভুলভাবে যাচাই হবে।',
+      'Enter the WAN IP shown by the router to verify CGNAT/shared versus real public IP.'
+    ],
+    'version': ['সংস্করণ ১.১.০', 'Version 1.1.0'],
   };
 }

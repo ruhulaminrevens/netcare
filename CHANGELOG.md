@@ -2,6 +2,25 @@
 
 All notable changes are documented here.
 
+## [1.1.0] - 2026-09-01
+
+### Added
+
+- RAR NetCare branding across Android, Windows, installer, documentation, and releases.
+- Mobile-data, Wi-Fi, Ethernet, VPN, Bluetooth, and offline connection detection.
+- ISP/ASN/organization/domain and approximate IP-location intelligence.
+- Public/shared IP assessment using local, public, and optional router WAN addresses.
+- Persistent on-device public-IP observations for change/dynamic detection.
+- Real transfer facts, health score, warm-up, and improved jitter calculation.
+- Smaller ARM64, ARMv7, and x86_64 APKs alongside the universal APK.
+
+### Fixed
+
+- Duplicate ISP/Public-IP result block on narrow Android layouts.
+- Blank ISP metadata fallback behavior.
+- Jitter calculation now preserves chronological sample order.
+- Active local IP selection now prefers the current connection interface.
+
 ## [1.0.0] - 2026-08-31
 
 ### Added

@@ -45,7 +45,7 @@ class _NetCareAppState extends State<NetCareApp> {
     const seed = Color(0xFF31D6C4);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Ruhul NetCare',
+      title: 'RAR NetCare',
       themeMode: _darkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: seed),

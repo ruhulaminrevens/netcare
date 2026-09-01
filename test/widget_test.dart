@@ -8,13 +8,13 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: SectionCard(
-            child: ListTile(title: Text('Ruhul NetCare')),
+            child: ListTile(title: Text('RAR NetCare')),
           ),
         ),
       ),
     );
 
-    expect(find.text('Ruhul NetCare'), findsOneWidget);
+    expect(find.text('RAR NetCare'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

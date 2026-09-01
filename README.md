@@ -1,24 +1,29 @@
-# Ruhul NetCare
+# RAR NetCare
 
-Ruhul NetCare is a privacy-first internet speed and local-network diagnostic app for Windows and Android. It combines a practical speed test with the checks people actually need when troubleshooting home, office, LAN, router, managed switch, server, and private remote-access paths.
+RAR NetCare is a privacy-first internet speed, public-IP intelligence, and local-network diagnostic app for Windows and Android. It supports Wi-Fi, mobile data, Ethernet/LAN, VPN visibility, home and office networks, router/switch/server checks, and private remote-access paths.
 
 ## Downloads
 
 Download the latest public build from [GitHub Releases](https://github.com/ruhulaminrevens/netcare/releases/latest).
 
-- **Windows:** `Ruhul-NetCare-Setup-1.0.0-x64.exe`
-- **Android:** `Ruhul-NetCare-1.0.0-android.apk`
-- **Portable Windows:** `Ruhul-NetCare-1.0.0-windows-portable.zip`
+- **Windows:** `RAR-NetCare-Setup-1.1.0-x64.exe`
+- **Android ARM64 (recommended for most current phones):** `RAR-NetCare-1.1.0-android-arm64.apk`
+- **Android universal:** `RAR-NetCare-1.1.0-android-universal.apk`
+- **Portable Windows:** `RAR-NetCare-1.1.0-windows-portable.zip`
 - Verify downloads with `SHA256SUMS.txt`.
 
-> The v1.0.0 Windows installer is not Authenticode-signed, so Microsoft SmartScreen may show an unrecognized-publisher warning. The GitHub APK is intended for direct sideloading and is not a Play Store build.
+> The Windows installer is not Authenticode-signed, so Microsoft SmartScreen may show an unrecognized-publisher warning. The GitHub APK is intended for direct sideloading and is not a Play Store build.
 
 ## Features
 
-- Parallel download and upload measurement
-- Ping, jitter, and request-loss sampling
+- Real generated-data download and upload measurement with parallel streams
+- Warm-up plus chronological ping, jitter, and request-loss sampling
 - Quick, Balanced, and Deep test modes with visible data estimates
-- ISP, public IP, and nearest edge metadata when available
+- Wi-Fi, mobile-data, Ethernet, VPN, and offline connection detection
+- Public IPv4/IPv6, ISP, organization, ASN, domain, approximate city/region/country, timezone, and edge metadata
+- Direct public IP, router public IP, confirmed CGNAT/shared IP, likely carrier NAT, and upstream NAT/VPN classification
+- Locally observed stable/dynamic-IP history without falsely claiming that an unchanged address is contractually static
+- Network health score plus actual transferred-data and duration facts
 - Local IP, gateway/router, DNS, and internet reachability checks
 - Optional router, managed-switch, LAN-server, and remote/Tailscale endpoint profiles
 - Bengali and English interface
@@ -30,7 +35,9 @@ Download the latest public build from [GitHub Releases](https://github.com/ruhul
 
 ## Privacy and network safety
 
-The app stores settings and test history only on the device. It does not upload local addresses, custom device profiles, or history to the project owner. The default speed test transfers generated data to Cloudflare's public speed endpoint. See [PRIVACY.md](PRIVACY.md).
+The app stores settings, public-IP observations, and test history only on the device. It does not upload local addresses, custom device profiles, or history to the project owner. The default speed test transfers generated data to Cloudflare's public speed endpoint. Public-IP metadata is enriched through Cloudflare and the no-key IPWhoIs endpoint. See [PRIVACY.md](PRIVACY.md).
+
+IP geolocation is approximate. A client device cannot prove that an unchanged public IP is a paid static assignment. RAR NetCare therefore reports observed stability and uses the router WAN IP, when entered by the user, to distinguish a real router public IP from CGNAT/shared addressing.
 
 Endpoint checks are limited to the addresses entered by the user and a short list of normal management/service ports. Use them only on networks you own or administer. The app does not expose RDP, SMB, router administration, or application ports to the public internet.
 

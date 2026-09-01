@@ -1,8 +1,9 @@
 {
   "name": "Example office",
   "gateway": "192.168.1.1",
-  "switch": "192.168.1.2",
-  "server": "192.168.1.10",
+  "routerWanIp": "100.64.0.2",
+  "switchIp": "192.168.1.2",
+  "serverIp": "192.168.1.10",
   "remoteHost": "100.64.0.10",
   "remotePort": 3389,
   "notes": "Use only addresses that you own or administer. Private profiles stay on the device."

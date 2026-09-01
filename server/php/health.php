@@ -7,6 +7,6 @@ header('Access-Control-Allow-Origin: *');
 
 echo json_encode([
     'ok' => true,
-    'service' => 'Ruhul NetCare test point',
+    'service' => 'RAR NetCare test point',
     'time' => gmdate('c'),
 ], JSON_UNESCAPED_SLASHES);

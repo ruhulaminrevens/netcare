@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_strings.dart';
+import '../models/ip_intelligence.dart';
 import '../models/network_profile.dart';
 import '../models/speed_test_result.dart';
 import '../services/speed_test_service.dart';
@@ -52,11 +53,12 @@ class _SpeedPageState extends State<SpeedPage> {
       final snapshot = widget.snapshot;
       final result = await _speedTest.run(
         mode: _mode,
-        localIp: snapshot?.wifiIp ??
-            (snapshot?.localAddresses.isNotEmpty == true
-                ? snapshot!.localAddresses.first
-                : null),
+        localIp: snapshot?.activeLocalIp ?? snapshot?.wifiIp,
         gateway: snapshot?.gateway,
+        publicInfo: snapshot?.publicInfo,
+        connectionType: _connectionLabel(widget.strings, snapshot),
+        ipAccessType: snapshot?.ipAccessType.name,
+        ipStability: snapshot?.ipStability.name,
         onProgress: (stage, fraction) {
           if (!mounted) return;
           setState(() {
@@ -90,6 +92,7 @@ class _SpeedPageState extends State<SpeedPage> {
   @override
   Widget build(BuildContext context) {
     final strings = widget.strings;
+    final publicInfo = _result?.publicInfo ?? widget.snapshot?.publicInfo;
     return RefreshIndicator(
       onRefresh: widget.onRefreshNetwork,
       child: ListView(
@@ -101,8 +104,8 @@ class _SpeedPageState extends State<SpeedPage> {
           _PageHeading(
             title: strings.t('speedTest'),
             subtitle: strings.isBangla
-                ? 'এক ট্যাপে speed, stability এবং connection health দেখুন'
-                : 'Measure speed, stability, and connection health in one tap',
+                ? 'Wi-Fi, mobile data ও LAN-এর বাস্তব speed, IP এবং connection health দেখুন'
+                : 'Measure real Wi-Fi, mobile-data, and LAN speed, IP, and connection health',
           ),
           const SizedBox(height: 18),
           LayoutBuilder(
@@ -149,10 +152,20 @@ class _SpeedPageState extends State<SpeedPage> {
                       '${strings.t('dataUse')}: ~${_mode.estimatedMegabytes} MB',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    if (widget.snapshot?.isMobile == true) ...[
+                      const SizedBox(height: 12),
+                      _Notice(
+                        icon: Icons.signal_cellular_alt_rounded,
+                        text: strings.t('mobileDataWarning'),
+                        color: const Color(0xFFFFC857),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     FilledButton.icon(
                       onPressed: _running ? _cancel : _start,
-                      icon: Icon(_running ? Icons.stop_rounded : Icons.play_arrow_rounded),
+                      icon: Icon(
+                        _running ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                      ),
                       label: Text(
                         _running ? strings.t('stopTest') : strings.t('startTest'),
                       ),
@@ -171,7 +184,10 @@ class _SpeedPageState extends State<SpeedPage> {
                   ],
                 ),
               );
-              final metrics = _ResultMetrics(strings: strings, result: _result);
+              final metrics = _ResultMetrics(
+                strings: strings,
+                result: _result,
+              );
               return wide
                   ? Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,9 +197,22 @@ class _SpeedPageState extends State<SpeedPage> {
                         Expanded(flex: 6, child: metrics),
                       ],
                     )
-                  : Column(children: [gauge, const SizedBox(height: 18), metrics]);
+                  : Column(
+                      children: [gauge, const SizedBox(height: 18), metrics],
+                    );
             },
           ),
+          const SizedBox(height: 18),
+          _IpIntelligenceCard(
+            strings: strings,
+            info: publicInfo,
+            snapshot: widget.snapshot,
+            loading: widget.loadingNetwork,
+          ),
+          if (_result != null) ...[
+            const SizedBox(height: 18),
+            _TestFactsCard(strings: strings, result: _result!),
+          ],
           const SizedBox(height: 18),
           _NetworkSnapshotCard(
             strings: strings,
@@ -232,65 +261,178 @@ class _ResultMetrics extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String speed(double? value) => value?.toStringAsFixed(1) ?? '—';
-    return Column(
+    return GridView.count(
+      crossAxisCount: MediaQuery.sizeOf(context).width >= 470 ? 2 : 1,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 2.55,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       children: [
-        GridView.count(
-          crossAxisCount: MediaQuery.sizeOf(context).width >= 470 ? 2 : 1,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 2.55,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            MetricTile(
-              label: strings.t('download'),
-              value: speed(result?.downloadMbps),
-              unit: strings.t('mbps'),
-              icon: Icons.download_rounded,
-            ),
-            MetricTile(
-              label: strings.t('upload'),
-              value: speed(result?.uploadMbps),
-              unit: strings.t('mbps'),
-              icon: Icons.upload_rounded,
-              color: const Color(0xFF35A7FF),
-            ),
-            MetricTile(
-              label: strings.t('latency'),
-              value: speed(result?.pingMs),
-              unit: strings.t('ms'),
-              icon: Icons.network_ping_rounded,
-              color: const Color(0xFFFFC857),
-            ),
-            MetricTile(
-              label: strings.t('jitter'),
-              value: speed(result?.jitterMs),
-              unit: strings.t('ms'),
-              icon: Icons.show_chart_rounded,
-              color: const Color(0xFFB892FF),
-            ),
-          ],
+        MetricTile(
+          label: strings.t('download'),
+          value: speed(result?.downloadMbps),
+          unit: strings.t('mbps'),
+          icon: Icons.download_rounded,
         ),
-        if (result != null) ...[
-          const SizedBox(height: 12),
-          SectionCard(
-            child: Column(
-              children: [
-                _InfoRow(label: strings.t('provider'), value: result!.isp ?? '—'),
-                _InfoRow(label: strings.t('publicIp'), value: result!.publicIp ?? '—'),
-                _InfoRow(label: strings.t('server'), value: result!.server ?? '—'),
-                _InfoRow(
-                  label: strings.t('packetLoss'),
-                  value: result!.packetLossPercent == null
-                      ? '—'
-                      : '${result!.packetLossPercent!.toStringAsFixed(1)}%',
-                  last: true,
+        MetricTile(
+          label: strings.t('upload'),
+          value: speed(result?.uploadMbps),
+          unit: strings.t('mbps'),
+          icon: Icons.upload_rounded,
+          color: const Color(0xFF35A7FF),
+        ),
+        MetricTile(
+          label: strings.t('latency'),
+          value: speed(result?.pingMs),
+          unit: strings.t('ms'),
+          icon: Icons.network_ping_rounded,
+          color: const Color(0xFFFFC857),
+        ),
+        MetricTile(
+          label: strings.t('jitter'),
+          value: speed(result?.jitterMs),
+          unit: strings.t('ms'),
+          icon: Icons.show_chart_rounded,
+          color: const Color(0xFFB892FF),
+        ),
+      ],
+    );
+  }
+}
+
+class _IpIntelligenceCard extends StatelessWidget {
+  const _IpIntelligenceCard({
+    required this.strings,
+    required this.info,
+    required this.snapshot,
+    required this.loading,
+  });
+
+  final AppStrings strings;
+  final PublicIpInfo? info;
+  final NetworkSnapshot? snapshot;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.public_rounded, color: Color(0xFF31D6C4)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  strings.isBangla ? 'পাবলিক IP ও ISP তথ্য' : 'Public IP & ISP intelligence',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                 ),
-              ],
-            ),
+              ),
+              if (loading)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _InfoRow(label: strings.t('publicIp'), value: info?.ip ?? '—'),
+          _InfoRow(label: strings.t('ipVersion'), value: info?.version ?? '—'),
+          _InfoRow(label: strings.t('provider'), value: info?.providerName ?? '—'),
+          _InfoRow(
+            label: strings.t('organization'),
+            value: info?.organization ?? '—',
+          ),
+          _InfoRow(
+            label: strings.t('asn'),
+            value: info?.asn == null ? '—' : 'AS${info!.asn}',
+          ),
+          _InfoRow(
+            label: strings.t('providerLocation'),
+            value: info?.locationLabel ?? '—',
+          ),
+          _InfoRow(label: strings.t('timezone'), value: info?.timezone ?? '—'),
+          _InfoRow(
+            label: strings.t('ipAccess'),
+            value: _ipAccessLabel(strings, snapshot?.ipAccessType),
+          ),
+          _InfoRow(
+            label: strings.t('ipStability'),
+            value: _ipStabilityLabel(strings, snapshot),
+            last: true,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            strings.t('wanHint'),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
-      ],
+      ),
+    );
+  }
+}
+
+class _TestFactsCard extends StatelessWidget {
+  const _TestFactsCard({required this.strings, required this.result});
+
+  final AppStrings strings;
+  final SpeedTestResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.fact_check_outlined, color: Color(0xFF35A7FF)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  strings.t('testFacts'),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ),
+              StatusPill(
+                label: '${result.healthScore}/100 · ${result.healthGrade}',
+                positive: result.healthScore >= 75,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _InfoRow(label: strings.t('connection'), value: result.connectionType ?? '—'),
+          _InfoRow(label: strings.t('server'), value: result.server ?? '—'),
+          _InfoRow(
+            label: strings.t('dataTransferred'),
+            value: '${result.transferredMegabytes.toStringAsFixed(1)} MB',
+          ),
+          _InfoRow(
+            label: strings.t('duration'),
+            value: '${result.testDurationSeconds.toStringAsFixed(1)} s',
+          ),
+          _InfoRow(
+            label: strings.t('requestLoss'),
+            value: result.packetLossPercent == null
+                ? '—'
+                : '${result.packetLossPercent!.toStringAsFixed(1)}%',
+            last: true,
+          ),
+          const SizedBox(height: 10),
+          _Notice(
+            icon: Icons.verified_rounded,
+            text: strings.t('actualDataNote'),
+            color: const Color(0xFF31D6C4),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -349,6 +491,13 @@ class _NetworkSnapshotCard extends StatelessWidget {
                 positive: snapshot?.internetAvailable == true,
               ),
               StatusPill(
+                label: _connectionLabel(strings, snapshot),
+                positive: snapshot?.connectionKinds.any(
+                      (kind) => kind != ConnectionKind.none,
+                    ) ==
+                    true,
+              ),
+              StatusPill(
                 label: snapshot?.tailscaleDetected == true
                     ? '${strings.t('tailscale')}: ${strings.t('detected')}'
                     : '${strings.t('tailscale')}: ${strings.t('notDetected')}',
@@ -359,10 +508,7 @@ class _NetworkSnapshotCard extends StatelessWidget {
           const SizedBox(height: 14),
           _InfoRow(
             label: strings.t('localIp'),
-            value: snapshot?.wifiIp ??
-                (snapshot?.localAddresses.isNotEmpty == true
-                    ? snapshot!.localAddresses.join(', ')
-                    : '—'),
+            value: snapshot?.activeLocalIp ?? snapshot?.wifiIp ?? '—',
           ),
           _InfoRow(label: strings.t('gateway'), value: snapshot?.gateway ?? '—'),
           _InfoRow(
@@ -370,8 +516,43 @@ class _NetworkSnapshotCard extends StatelessWidget {
             value: snapshot?.dnsLatencyMs == null
                 ? '—'
                 : '${snapshot!.dnsLatencyMs!.toStringAsFixed(1)} ms',
+          ),
+          _InfoRow(
+            label: strings.t('allLocalIps'),
+            value: snapshot?.localAddresses.isNotEmpty == true
+                ? snapshot!.localAddresses.join(', ')
+                : '—',
             last: true,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Notice extends StatelessWidget {
+  const _Notice({required this.icon, required this.text, required this.color});
+
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .09),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: .28)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 19),
+          const SizedBox(width: 9),
+          Expanded(child: Text(text, style: Theme.of(context).textTheme.bodySmall)),
         ],
       ),
     );
@@ -398,7 +579,7 @@ class _InfoRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
+            width: MediaQuery.sizeOf(context).width < 430 ? 112 : 155,
             child: Text(label, style: Theme.of(context).textTheme.labelMedium),
           ),
           Expanded(
@@ -412,4 +593,46 @@ class _InfoRow extends StatelessWidget {
       ),
     );
   }
+}
+
+String _connectionLabel(AppStrings strings, NetworkSnapshot? snapshot) {
+  final kinds = snapshot?.connectionKinds ?? const <ConnectionKind>[];
+  final labels = <String>[];
+  for (final kind in kinds) {
+    final label = switch (kind) {
+      ConnectionKind.wifi => strings.t('wifi'),
+      ConnectionKind.mobile => strings.t('mobileData'),
+      ConnectionKind.ethernet => strings.t('ethernet'),
+      ConnectionKind.vpn => strings.t('vpn'),
+      ConnectionKind.bluetooth => 'Bluetooth',
+      ConnectionKind.other => strings.t('otherConnection'),
+      ConnectionKind.none => strings.t('noConnection'),
+    };
+    if (!labels.contains(label)) labels.add(label);
+  }
+  return labels.isEmpty ? strings.t('unknown') : labels.join(' + ');
+}
+
+String _ipAccessLabel(AppStrings strings, IpAccessType? type) {
+  return switch (type) {
+    IpAccessType.directPublic => strings.t('directPublic'),
+    IpAccessType.publicAtRouter => strings.t('publicAtRouter'),
+    IpAccessType.cgnatConfirmed => strings.t('cgnatConfirmed'),
+    IpAccessType.sharedLikely => strings.t('sharedLikely'),
+    IpAccessType.upstreamNatOrVpn => strings.t('upstreamNatOrVpn'),
+    IpAccessType.natUnverified => strings.t('natUnverified'),
+    _ => strings.t('unknown'),
+  };
+}
+
+String _ipStabilityLabel(AppStrings strings, NetworkSnapshot? snapshot) {
+  final type = snapshot?.ipStability;
+  final base = switch (type) {
+    IpStability.firstObservation => strings.t('firstObservation'),
+    IpStability.stableObserved => strings.t('stableObserved'),
+    IpStability.dynamicDetected => strings.t('dynamicDetected'),
+    _ => strings.t('unknown'),
+  };
+  final count = snapshot?.ipObservation?.observationCount;
+  return count != null && count > 1 ? '$base ($count checks)' : base;
 }

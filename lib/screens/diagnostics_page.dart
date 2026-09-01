@@ -27,6 +27,7 @@ class DiagnosticsPage extends StatefulWidget {
 class _DiagnosticsPageState extends State<DiagnosticsPage> {
   late final TextEditingController _name;
   late final TextEditingController _gateway;
+  late final TextEditingController _routerWanIp;
   late final TextEditingController _switchIp;
   late final TextEditingController _serverIp;
   late final TextEditingController _remoteHost;
@@ -37,6 +38,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     super.initState();
     _name = TextEditingController();
     _gateway = TextEditingController();
+    _routerWanIp = TextEditingController();
     _switchIp = TextEditingController();
     _serverIp = TextEditingController();
     _remoteHost = TextEditingController();
@@ -55,6 +57,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
   void _applyProfile(NetworkProfile profile) {
     _name.text = profile.name;
     _gateway.text = profile.gateway;
+    _routerWanIp.text = profile.routerWanIp;
     _switchIp.text = profile.switchIp;
     _serverIp.text = profile.serverIp;
     _remoteHost.text = profile.remoteHost;
@@ -66,6 +69,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     for (final controller in [
       _name,
       _gateway,
+      _routerWanIp,
       _switchIp,
       _serverIp,
       _remoteHost,
@@ -87,6 +91,7 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     final profile = NetworkProfile(
       name: _name.text.trim(),
       gateway: _gateway.text.trim(),
+      routerWanIp: _routerWanIp.text.trim(),
       switchIp: _switchIp.text.trim(),
       serverIp: _serverIp.text.trim(),
       remoteHost: _remoteHost.text.trim(),
@@ -134,6 +139,11 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
                   final fields = [
                     _Field(controller: _name, label: strings.t('profileName')),
                     _Field(controller: _gateway, label: strings.t('gateway')),
+                    _Field(
+                      controller: _routerWanIp,
+                      label: strings.t('routerWanIp'),
+                      helper: strings.t('wanHint'),
+                    ),
                     _Field(controller: _switchIp, label: strings.t('switchIp')),
                     _Field(controller: _serverIp, label: strings.t('serverIp')),
                     _Field(controller: _remoteHost, label: strings.t('remoteHost')),
@@ -217,11 +227,17 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
 }
 
 class _Field extends StatelessWidget {
-  const _Field({required this.controller, required this.label, this.number = false});
+  const _Field({
+    required this.controller,
+    required this.label,
+    this.number = false,
+    this.helper,
+  });
 
   final TextEditingController controller;
   final String label;
   final bool number;
+  final String? helper;
 
   @override
   Widget build(BuildContext context) {
@@ -230,6 +246,8 @@ class _Field extends StatelessWidget {
       keyboardType: number ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
+        helperText: helper,
+        helperMaxLines: 3,
         border: const OutlineInputBorder(),
       ),
     );

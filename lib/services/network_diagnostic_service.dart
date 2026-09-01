@@ -1,25 +1,33 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 
 import '../models/network_profile.dart';
+import 'public_ip_service.dart';
 
 class NetworkDiagnosticService {
   final NetworkInfo _networkInfo = NetworkInfo();
+  final Connectivity _connectivity = Connectivity();
+  final PublicIpService _publicIpService = PublicIpService();
 
   Future<NetworkSnapshot> inspect({NetworkProfile? profile}) async {
-    final addressFuture = _localAddresses();
+    final localFuture = _localNetworkData();
     final wifiIpFuture = _safe(_networkInfo.getWifiIP);
     final gatewayFuture = _safe(_networkInfo.getWifiGatewayIP);
+    final connectionFuture = _connectionKinds();
     final internetFuture = _tcpProbe('1.1.1.1', 443);
     final dnsFuture = _dnsLatency();
+    final publicInfoFuture = _publicIpService.lookup();
 
-    final localAddresses = await addressFuture;
+    final local = await localFuture;
     final wifiIp = await wifiIpFuture;
     final detectedGateway = await gatewayFuture;
+    final connectionKinds = await connectionFuture;
     final internet = await internetFuture;
     final dnsLatency = await dnsFuture;
+    final publicInfo = await publicInfoFuture;
     final checks = <EndpointCheck>[];
 
     final selectedGateway = _firstNonEmpty([
@@ -33,7 +41,6 @@ class NetworkDiagnosticService {
         ports: const [80, 443],
       ));
     }
-
     if (_hasText(profile?.switchIp)) {
       checks.add(await _probeWithFallback(
         label: 'Managed switch',
@@ -58,17 +65,25 @@ class NetworkDiagnosticService {
 
     return NetworkSnapshot(
       timestamp: DateTime.now(),
-      internetAvailable: internet.reachable,
-      localAddresses: localAddresses,
+      internetAvailable: internet.reachable || publicInfo != null,
+      localAddresses: local.addresses,
+      connectionKinds: connectionKinds,
+      activeLocalIp: _activeLocalIp(
+        local.interfaces,
+        connectionKinds,
+        wifiIp,
+      ),
       wifiIp: wifiIp,
       gateway: selectedGateway,
+      routerWanIp: _firstNonEmpty([profile?.routerWanIp]),
+      publicInfo: publicInfo,
       dnsLatencyMs: dnsLatency,
-      tailscaleDetected: localAddresses.any(_isTailscaleAddress),
+      tailscaleDetected: local.addresses.any(_isTailscaleAddress),
       checks: checks,
     );
   }
 
-  Future<List<String>> _localAddresses() async {
+  Future<_LocalNetworkData> _localNetworkData() async {
     try {
       final interfaces = await NetworkInterface.list(
         includeLoopback: false,
@@ -80,22 +95,90 @@ class NetworkDiagnosticService {
           if (!address.isLoopback) values.add(address.address);
         }
       }
-      return values.toList()..sort();
+      return _LocalNetworkData(
+        addresses: values.toList()..sort(),
+        interfaces: interfaces,
+      );
     } on SocketException {
-      return const [];
+      return const _LocalNetworkData(addresses: [], interfaces: []);
     }
   }
 
-  Future<double?> _dnsLatency() async {
-    final stopwatch = Stopwatch()..start();
+  Future<List<ConnectionKind>> _connectionKinds() async {
     try {
-      final results = await InternetAddress.lookup('cloudflare.com')
-          .timeout(const Duration(seconds: 5));
-      stopwatch.stop();
-      return results.isEmpty ? null : stopwatch.elapsedMicroseconds / 1000;
+      final results = await _connectivity.checkConnectivity();
+      final kinds = <ConnectionKind>{};
+      for (final result in results) {
+        kinds.add(switch (result) {
+          ConnectivityResult.wifi => ConnectionKind.wifi,
+          ConnectivityResult.mobile => ConnectionKind.mobile,
+          ConnectivityResult.ethernet => ConnectionKind.ethernet,
+          ConnectivityResult.vpn => ConnectionKind.vpn,
+          ConnectivityResult.bluetooth => ConnectionKind.bluetooth,
+          ConnectivityResult.none => ConnectionKind.none,
+          _ => ConnectionKind.other,
+        });
+      }
+      return kinds.isEmpty ? const [ConnectionKind.none] : kinds.toList();
     } on Exception {
-      return null;
+      return const [ConnectionKind.other];
     }
+  }
+
+  String? _activeLocalIp(
+    List<NetworkInterface> interfaces,
+    List<ConnectionKind> kinds,
+    String? wifiIp,
+  ) {
+    if (kinds.contains(ConnectionKind.wifi) && _hasText(wifiIp)) {
+      return wifiIp!.trim();
+    }
+
+    final preferredPattern = kinds.contains(ConnectionKind.mobile)
+        ? RegExp(r'rmnet|ccmni|pdp|wwan|cell', caseSensitive: false)
+        : kinds.contains(ConnectionKind.ethernet)
+            ? RegExp(r'ethernet|^eth|^en', caseSensitive: false)
+            : RegExp(r'wlan|wifi|ethernet|^eth|^en|rmnet|wwan', caseSensitive: false);
+    for (final interface in interfaces) {
+      if (!preferredPattern.hasMatch(interface.name)) continue;
+      for (final address in interface.addresses) {
+        if (address.type == InternetAddressType.IPv4 &&
+            !_isTailscaleAddress(address.address)) {
+          return address.address;
+        }
+      }
+    }
+    for (final interface in interfaces) {
+      final virtual = RegExp(
+        r'tailscale|tun|docker|veth|virtual|loopback',
+        caseSensitive: false,
+      ).hasMatch(interface.name);
+      if (virtual) continue;
+      for (final address in interface.addresses) {
+        if (address.type == InternetAddressType.IPv4) return address.address;
+      }
+    }
+    return null;
+  }
+
+  Future<double?> _dnsLatency() async {
+    final samples = <double>[];
+    for (final host in const ['one.one.one.one', 'example.com', 'github.com']) {
+      final stopwatch = Stopwatch()..start();
+      try {
+        final results = await InternetAddress.lookup(host)
+            .timeout(const Duration(seconds: 4));
+        stopwatch.stop();
+        if (results.isNotEmpty) {
+          samples.add(stopwatch.elapsedMicroseconds / 1000);
+        }
+      } on Exception {
+        // Keep successful samples; one failed lookup should not hide DNS health.
+      }
+    }
+    if (samples.isEmpty) return null;
+    samples.sort();
+    return samples[samples.length ~/ 2];
   }
 
   Future<EndpointCheck> _probeWithFallback({
@@ -178,4 +261,11 @@ class NetworkDiagnosticService {
     final second = int.tryParse(parts[1]);
     return second != null && second >= 64 && second <= 127;
   }
+}
+
+class _LocalNetworkData {
+  const _LocalNetworkData({required this.addresses, required this.interfaces});
+
+  final List<String> addresses;
+  final List<NetworkInterface> interfaces;
 }

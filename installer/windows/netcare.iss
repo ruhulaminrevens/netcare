@@ -1,5 +1,5 @@
-#define MyAppName "Ruhul NetCare"
-#define MyAppVersion "1.0.0"
+#define MyAppName "RAR NetCare"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Ruhul Amin Revens"
 #define MyAppExeName "ruhul_netcare.exe"
 #define MyAppURL "https://github.com/ruhulaminrevens/netcare"
@@ -13,12 +13,12 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues
 AppUpdatesURL={#MyAppURL}/releases
-DefaultDirName={autopf}\Ruhul NetCare
-DefaultGroupName=Ruhul NetCare
+DefaultDirName={autopf}\RAR NetCare
+DefaultGroupName=RAR NetCare
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\..\dist
-OutputBaseFilename=Ruhul-NetCare-Setup-{#MyAppVersion}-x64
+OutputBaseFilename=RAR-NetCare-Setup-{#MyAppVersion}-x64
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -38,8 +38,8 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\Ruhul NetCare"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\Ruhul NetCare"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autoprograms}\RAR NetCare"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\RAR NetCare"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch Ruhul NetCare"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch RAR NetCare"; Flags: nowait postinstall skipifsilent

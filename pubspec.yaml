@@ -1,7 +1,7 @@
 name: ruhul_netcare
-description: Privacy-first internet speed and local network diagnostics for Windows and Android.
+description: RAR NetCare internet speed, IP intelligence, and local network diagnostics.
 publish_to: "none"
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  connectivity_plus: ^7.0.0
   http: ^1.2.2
   network_info_plus: ^6.1.4
   shared_preferences: ^2.3.3

@@ -9,11 +9,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: netcare-v1-release
+  group: rar-netcare-v1-1-release
   cancel-in-progress: true
 
 env:
-  APP_VERSION: 1.0.0
+  APP_VERSION: 1.1.0
   FLUTTER_CHANNEL: stable
 
 jobs:
@@ -52,12 +52,17 @@ jobs:
       - run: flutter pub get
       - name: Generate launcher icons
         run: dart run flutter_launcher_icons
-      - name: Build installable APK
-        run: flutter build apk --release
+      - name: Build universal and smaller device-specific APKs
+        run: |
+          flutter build apk --release
+          flutter build apk --release --split-per-abi
       - name: Prepare artifact
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/Ruhul-NetCare-${APP_VERSION}-android.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/RAR-NetCare-${APP_VERSION}-android-universal.apk"
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/RAR-NetCare-${APP_VERSION}-android-arm64.apk"
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "dist/RAR-NetCare-${APP_VERSION}-android-armeabi-v7a.apk"
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk "dist/RAR-NetCare-${APP_VERSION}-android-x86_64.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
@@ -81,13 +86,16 @@ jobs:
           flutter create . --project-name ruhul_netcare --org com.ruhulaminrevens --platforms=windows
           flutter pub get
           dart run flutter_launcher_icons
+          $main = Get-Content "windows/runner/main.cpp" -Raw
+          $main = $main.Replace('L"ruhul_netcare"', 'L"RAR NetCare"')
+          Set-Content "windows/runner/main.cpp" $main
       - name: Build Windows app
         run: flutter build windows --release
       - name: Create portable archive
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "dist/Ruhul-NetCare-${env:APP_VERSION}-windows-portable.zip" -Force
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "dist/RAR-NetCare-${env:APP_VERSION}-windows-portable.zip" -Force
       - name: Locate Inno Setup
         id: inno
         shell: pwsh
@@ -123,12 +131,12 @@ jobs:
       - name: Generate SHA-256 checksums
         working-directory: release-files
         run: sha256sum * > SHA256SUMS.txt
-      - name: Publish v1.0.0
+      - name: Publish v1.1.0
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
+          tag_name: v1.1.0
           target_commitish: main
-          name: Ruhul NetCare v1.0.0
+          name: RAR NetCare v1.1.0
           body_path: RELEASE_NOTES.md
           prerelease: false
           make_latest: true

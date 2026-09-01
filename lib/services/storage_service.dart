@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/ip_intelligence.dart';
 import '../models/network_profile.dart';
 import '../models/speed_test_result.dart';
 
@@ -17,6 +18,10 @@ class StorageService {
   static const _profileKey = 'network_profile_v1';
   static const _banglaKey = 'is_bangla';
   static const _darkModeKey = 'dark_mode';
+  static const _lastPublicIpKey = 'last_public_ip_v1';
+  static const _publicIpFirstSeenKey = 'public_ip_first_seen_v1';
+  static const _publicIpCountKey = 'public_ip_observation_count_v1';
+  static const _publicIpEverChangedKey = 'public_ip_ever_changed_v1';
 
   Future<AppPreferences> loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -81,5 +86,50 @@ class StorageService {
   Future<void> saveProfile(NetworkProfile profile) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_profileKey, jsonEncode(profile.toJson()));
+  }
+
+  Future<IpObservation?> observePublicIp(
+    String? value, {
+    String scope = 'default',
+  }) async {
+    final currentIp = value?.trim();
+    if (currentIp == null || currentIp.isEmpty) return null;
+    final prefs = await SharedPreferences.getInstance();
+    final normalizedScope = scope.trim().isEmpty
+        ? 'default'
+        : scope.trim().replaceAll(RegExp(r'[^a-zA-Z0-9_-]+'), '_');
+    final lastPublicIpKey = '$_lastPublicIpKey:$normalizedScope';
+    final firstSeenKey = '$_publicIpFirstSeenKey:$normalizedScope';
+    final countKey = '$_publicIpCountKey:$normalizedScope';
+    final everChangedKey = '$_publicIpEverChangedKey:$normalizedScope';
+    final now = DateTime.now();
+    final previousIp = prefs.getString(lastPublicIpKey);
+    final changed = previousIp != null && previousIp != currentIp;
+    final everChanged = (prefs.getBool(everChangedKey) ?? false) || changed;
+    final storedFirstSeen = DateTime.tryParse(
+      prefs.getString(firstSeenKey) ?? '',
+    );
+    final firstSeen = previousIp == currentIp && storedFirstSeen != null
+        ? storedFirstSeen
+        : now;
+    final count = previousIp == currentIp
+        ? (prefs.getInt(countKey) ?? 0) + 1
+        : 1;
+
+    await Future.wait([
+      prefs.setString(lastPublicIpKey, currentIp),
+      prefs.setString(firstSeenKey, firstSeen.toIso8601String()),
+      prefs.setInt(countKey, count),
+      prefs.setBool(everChangedKey, everChanged),
+    ]);
+    return IpObservation(
+      currentIp: currentIp,
+      previousIp: changed ? previousIp : null,
+      firstSeen: firstSeen,
+      lastSeen: now,
+      observationCount: count,
+      changedSinceLastCheck: changed,
+      everChanged: everChanged,
+    );
   }
 }

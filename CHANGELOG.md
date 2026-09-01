@@ -2,6 +2,18 @@
 
 All notable changes are documented here.
 
+## [1.1.1] - 2026-09-01
+
+### Changed
+
+- Established a persistent Android release certificate for reliable in-place updates from v1.1.1 onward.
+- Added CI verification for every universal and architecture-specific APK before publication.
+- Bumped Android build number and Windows installer version to 1.1.1.
+
+### Installation note
+
+- Android v1.0.0 and v1.1.0 used temporary CI certificates. Uninstall either older version once before installing v1.1.1; future releases can then update v1.1.1 normally.
+
 ## [1.1.0] - 2026-09-01
 
 ### Added

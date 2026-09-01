@@ -123,6 +123,6 @@ class AppStrings {
       'Router Status পেইজের WAN IP দিলে CGNAT/shared বনাম real public IP নির্ভুলভাবে যাচাই হবে।',
       'Enter the WAN IP shown by the router to verify CGNAT/shared versus real public IP.'
     ],
-    'version': ['সংস্করণ ১.১.০', 'Version 1.1.0'],
+    'version': ['সংস্করণ ১.১.১', 'Version 1.1.1'],
   };
 }

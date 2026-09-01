@@ -91,7 +91,7 @@ class SpeedTestService {
       ..maxConnectionsPerHost = 8
       ..connectionTimeout = const Duration(seconds: 10)
       ..idleTimeout = const Duration(seconds: 15)
-      ..userAgent = 'RAR-NetCare/1.1.0';
+      ..userAgent = 'RAR-NetCare/1.1.1';
     _activeClient = client;
 
     try {

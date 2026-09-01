@@ -1,6 +1,6 @@
-# RAR NetCare v1.1.0
+# RAR NetCare v1.1.1
 
-This release renames Ruhul NetCare to **RAR NetCare** and expands it into a fuller mobile-data, public-IP, ISP, and network-quality diagnostic tool.
+RAR NetCare v1.1.1 keeps all v1.1 network features and establishes a persistent Android release certificate so later APK releases can update this version in place.
 
 ## What is included
 
@@ -16,12 +16,14 @@ This release renames Ruhul NetCare to **RAR NetCare** and expands it into a full
 - Local-only history with copyable JSON reports
 - Optional PHP 8+ shared-hosting test-point package
 - Windows installer, Windows portable build, smaller architecture-specific Android APKs, universal APK, and SHA-256 checksums
+- Persistent release signing and certificate verification for every published APK
 
 ## Download notes
 
 - Windows may show a SmartScreen warning because the installer is not backed by a paid Authenticode certificate.
 - Android requires **Install unknown apps** permission for the browser or file manager used to open the APK.
 - Most current Android phones should use the smaller `android-arm64.apk`; use the universal APK only when unsure.
+- **One-time Android reinstall:** v1.0.0 and v1.1.0 used temporary CI certificates. Uninstall either older version before installing v1.1.1. Releases after v1.1.1 can update it normally when signed with the same protected certificate.
 - Verify the downloaded file against `SHA256SUMS.txt` before installation.
 
 ## Privacy

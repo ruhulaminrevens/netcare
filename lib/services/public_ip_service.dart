@@ -9,7 +9,7 @@ class PublicIpService {
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 6)
       ..idleTimeout = const Duration(seconds: 6)
-      ..userAgent = 'RAR-NetCare/1.1.0';
+      ..userAgent = 'RAR-NetCare/1.1.1';
     try {
       final results = await Future.wait<PublicIpInfo?>([
         _cloudflare(client),

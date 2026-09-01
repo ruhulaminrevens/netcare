@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/app_strings.dart';
 import '../models/ip_intelligence.dart';
@@ -35,6 +36,7 @@ class _SpeedPageState extends State<SpeedPage> {
   double _progress = 0;
   String _stage = 'Ready';
   String? _error;
+  bool _showPublicIp = false;
 
   @override
   void dispose() {
@@ -87,6 +89,15 @@ class _SpeedPageState extends State<SpeedPage> {
       _running = false;
       _error = widget.strings.t('cancelled');
     });
+  }
+
+  Future<void> _copyPublicIp(String? ip) async {
+    if (ip == null || ip.trim().isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: ip.trim()));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(widget.strings.t('ipCopied'))),
+    );
   }
 
   @override
@@ -208,6 +219,11 @@ class _SpeedPageState extends State<SpeedPage> {
             info: publicInfo,
             snapshot: widget.snapshot,
             loading: widget.loadingNetwork,
+            showPublicIp: _showPublicIp,
+            onTogglePublicIp: () {
+              setState(() => _showPublicIp = !_showPublicIp);
+            },
+            onCopyPublicIp: () => _copyPublicIp(publicInfo?.ip),
           ),
           if (_result != null) ...[
             const SizedBox(height: 18),
@@ -307,12 +323,18 @@ class _IpIntelligenceCard extends StatelessWidget {
     required this.info,
     required this.snapshot,
     required this.loading,
+    required this.showPublicIp,
+    required this.onTogglePublicIp,
+    required this.onCopyPublicIp,
   });
 
   final AppStrings strings;
   final PublicIpInfo? info;
   final NetworkSnapshot? snapshot;
   final bool loading;
+  final bool showPublicIp;
+  final VoidCallback onTogglePublicIp;
+  final VoidCallback onCopyPublicIp;
 
   @override
   Widget build(BuildContext context) {
@@ -338,10 +360,31 @@ class _IpIntelligenceCard extends StatelessWidget {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
+              IconButton(
+                tooltip: strings.t(showPublicIp ? 'hideIp' : 'showIp'),
+                onPressed: info?.ip.isNotEmpty == true ? onTogglePublicIp : null,
+                icon: Icon(
+                  showPublicIp
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                ),
+              ),
+              IconButton(
+                tooltip: strings.t('copyIp'),
+                onPressed: info?.ip.isNotEmpty == true ? onCopyPublicIp : null,
+                icon: const Icon(Icons.copy_rounded),
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          _InfoRow(label: strings.t('publicIp'), value: info?.ip ?? '—'),
+          _InfoRow(
+            label: strings.t('publicIp'),
+            value: info?.ip == null
+                ? '—'
+                : showPublicIp
+                    ? info!.ip
+                    : maskIpAddress(info!.ip),
+          ),
           _InfoRow(label: strings.t('ipVersion'), value: info?.version ?? '—'),
           _InfoRow(label: strings.t('provider'), value: info?.providerName ?? '—'),
           _InfoRow(
@@ -367,6 +410,11 @@ class _IpIntelligenceCard extends StatelessWidget {
             last: true,
           ),
           const SizedBox(height: 10),
+          Text(
+            strings.t('locationHint'),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 6),
           Text(
             strings.t('wanHint'),
             style: Theme.of(context).textTheme.bodySmall,
@@ -402,8 +450,10 @@ class _TestFactsCard extends StatelessWidget {
                 ),
               ),
               StatusPill(
-                label: '${result.healthScore}/100 · ${result.healthGrade}',
+                label:
+                    '${result.healthScore}/100 · ${_healthGradeLabel(strings, result)}',
                 positive: result.healthScore >= 75,
+                color: _healthColor(result.healthScore),
               ),
             ],
           ),
@@ -423,6 +473,18 @@ class _TestFactsCard extends StatelessWidget {
             value: result.packetLossPercent == null
                 ? '—'
                 : '${result.packetLossPercent!.toStringAsFixed(1)}%',
+          ),
+          _InfoRow(
+            label: strings.t('latencyMethod'),
+            value: strings.t('latencyMethodValue'),
+          ),
+          _InfoRow(
+            label: strings.t('healthBreakdown'),
+            value: '${strings.t('speedQuality')} ${result.speedHealthScore}/40 · '
+                '${strings.t('responsiveness')} '
+                '${result.responsivenessHealthScore}/30 · '
+                '${strings.t('stabilityQuality')} '
+                '${result.stabilityHealthScore}/30',
             last: true,
           ),
           const SizedBox(height: 10),
@@ -452,6 +514,23 @@ class _NetworkSnapshotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeIp = snapshot?.activeLocalIp ?? snapshot?.wifiIp;
+    final localAddresses = snapshot?.localAddresses ?? const <String>[];
+    final hasTailscale = snapshot?.tailscaleDetected == true;
+    final tailscaleAddresses = hasTailscale
+        ? localAddresses.where(_isTailscaleAddress).toList()
+        : const <String>[];
+    final ipv6Addresses = localAddresses
+        .where((address) =>
+            address.contains(':') &&
+            !(hasTailscale && _isTailscaleAddress(address)))
+        .toList();
+    final otherIpv4 = localAddresses
+        .where((address) =>
+            address.contains('.') &&
+            address != activeIp &&
+            !(hasTailscale && _isTailscaleAddress(address)))
+        .toList();
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -508,7 +587,7 @@ class _NetworkSnapshotCard extends StatelessWidget {
           const SizedBox(height: 14),
           _InfoRow(
             label: strings.t('localIp'),
-            value: snapshot?.activeLocalIp ?? snapshot?.wifiIp ?? '—',
+            value: activeIp ?? '—',
           ),
           _InfoRow(label: strings.t('gateway'), value: snapshot?.gateway ?? '—'),
           _InfoRow(
@@ -517,11 +596,19 @@ class _NetworkSnapshotCard extends StatelessWidget {
                 ? '—'
                 : '${snapshot!.dnsLatencyMs!.toStringAsFixed(1)} ms',
           ),
+          if (otherIpv4.isNotEmpty)
+            _InfoRow(
+              label: strings.t('otherLocalIpv4'),
+              value: otherIpv4.join('\n'),
+            ),
+          if (tailscaleAddresses.isNotEmpty)
+            _InfoRow(
+              label: strings.t('tailscaleAddresses'),
+              value: tailscaleAddresses.join('\n'),
+            ),
           _InfoRow(
-            label: strings.t('allLocalIps'),
-            value: snapshot?.localAddresses.isNotEmpty == true
-                ? snapshot!.localAddresses.join(', ')
-                : '—',
+            label: strings.t('ipv6Addresses'),
+            value: ipv6Addresses.isEmpty ? '—' : ipv6Addresses.join('\n'),
             last: true,
           ),
         ],
@@ -626,6 +713,14 @@ String _ipAccessLabel(AppStrings strings, IpAccessType? type) {
 }
 
 String _ipStabilityLabel(AppStrings strings, NetworkSnapshot? snapshot) {
+  final observation = snapshot?.ipObservation;
+  final count = observation?.observationCount;
+  if (snapshot?.isMobile == true) {
+    final base = observation?.everChanged == true
+        ? strings.t('mobileCarrierChanged')
+        : strings.t('mobileCarrierStatus');
+    return count != null && count > 1 ? '$base ($count checks)' : base;
+  }
   final type = snapshot?.ipStability;
   final base = switch (type) {
     IpStability.firstObservation => strings.t('firstObservation'),
@@ -633,6 +728,30 @@ String _ipStabilityLabel(AppStrings strings, NetworkSnapshot? snapshot) {
     IpStability.dynamicDetected => strings.t('dynamicDetected'),
     _ => strings.t('unknown'),
   };
-  final count = snapshot?.ipObservation?.observationCount;
   return count != null && count > 1 ? '$base ($count checks)' : base;
+}
+
+String _healthGradeLabel(AppStrings strings, SpeedTestResult result) {
+  return switch (result.healthScore) {
+    >= 90 => strings.t('excellent'),
+    >= 75 => strings.t('good'),
+    >= 55 => strings.t('fair'),
+    _ => strings.t('poor'),
+  };
+}
+
+Color _healthColor(int score) => switch (score) {
+      >= 90 => const Color(0xFF31D6C4),
+      >= 75 => const Color(0xFF35A7FF),
+      >= 55 => const Color(0xFFFFC857),
+      _ => const Color(0xFFFF6B6B),
+    };
+
+bool _isTailscaleAddress(String address) {
+  final normalized = address.toLowerCase();
+  if (normalized.startsWith('fd7a:115c:a1e0:')) return true;
+  final parts = normalized.split('.');
+  if (parts.length != 4 || parts.first != '100') return false;
+  final second = int.tryParse(parts[1]);
+  return second != null && second >= 64 && second <= 127;
 }

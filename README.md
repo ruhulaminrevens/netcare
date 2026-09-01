@@ -6,15 +6,15 @@ RAR NetCare is a privacy-first internet speed, public-IP intelligence, and local
 
 Download the latest public build from [GitHub Releases](https://github.com/ruhulaminrevens/netcare/releases/latest).
 
-- **Windows:** `RAR-NetCare-Setup-1.1.1-x64.exe`
-- **Android ARM64 (recommended for most current phones):** `RAR-NetCare-1.1.1-android-arm64.apk`
-- **Android universal:** `RAR-NetCare-1.1.1-android-universal.apk`
-- **Portable Windows:** `RAR-NetCare-1.1.1-windows-portable.zip`
+- **Windows:** `RAR-NetCare-Setup-1.1.2-x64.exe`
+- **Android ARM64 (recommended for most current phones):** `RAR-NetCare-1.1.2-android-arm64.apk`
+- **Android universal:** `RAR-NetCare-1.1.2-android-universal.apk`
+- **Portable Windows:** `RAR-NetCare-1.1.2-windows-portable.zip`
 - Verify downloads with `SHA256SUMS.txt`.
 
 > The Windows installer is not Authenticode-signed, so Microsoft SmartScreen may show an unrecognized-publisher warning. The GitHub APK is intended for direct sideloading and is not a Play Store build.
 
-> Android v1.1.1 establishes the persistent RAR NetCare release certificate. Because v1.0.0 and v1.1.0 used temporary build certificates, uninstall either older version once before installing v1.1.1. Future releases signed with this certificate can update v1.1.1 in place.
+> Android v1.1.2 uses the persistent RAR NetCare release certificate and updates v1.1.1 in place. Because v1.0.0 and v1.1.0 used temporary build certificates, uninstall either older version once before installing v1.1.2.
 
 ## Features
 

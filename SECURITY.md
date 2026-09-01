@@ -23,11 +23,11 @@ Each release includes `SHA256SUMS.txt`. Compare the checksum of a downloaded fil
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\RAR-NetCare-Setup-1.1.1-x64.exe -Algorithm SHA256
+Get-FileHash .\RAR-NetCare-Setup-1.1.2-x64.exe -Algorithm SHA256
 ```
 
 Android/Unix shell:
 
 ```bash
-sha256sum RAR-NetCare-1.1.1-android-arm64.apk
+sha256sum RAR-NetCare-1.1.2-android-arm64.apk
 ```

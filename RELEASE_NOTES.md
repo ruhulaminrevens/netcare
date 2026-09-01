@@ -1,6 +1,6 @@
-# RAR NetCare v1.1.1
+# RAR NetCare v1.1.2
 
-RAR NetCare v1.1.1 keeps all v1.1 network features and establishes a persistent Android release certificate so later APK releases can update this version in place.
+RAR NetCare v1.1.2 is the final accuracy, classification, privacy, and network-detection update for the v1 series.
 
 ## What is included
 
@@ -17,13 +17,21 @@ RAR NetCare v1.1.1 keeps all v1.1 network features and establishes a persistent 
 - Optional PHP 8+ shared-hosting test-point package
 - Windows installer, Windows portable build, smaller architecture-specific Android APKs, universal APK, and SHA-256 checksums
 - Persistent release signing and certificate verification for every published APK
+- Balanced health scoring with separate speed, responsiveness, and stability components
+- Median HTTP latency and jitter from 12 measured samples after connection warm-up
+- Per-network public-IP history using connection, ISP ASN, gateway, and optional profile identity
+- Correct mobile carrier/shared-IP wording and Cloudflare edge server labels
+- Automatic Windows Ethernet/LAN default-gateway detection
+- Public-IP masking with explicit show/hide and copy controls
+- Cleaner grouped IPv4, IPv6, and Tailscale address presentation
+- Approximate-location privacy guidance and four-level health colors
 
 ## Download notes
 
 - Windows may show a SmartScreen warning because the installer is not backed by a paid Authenticode certificate.
 - Android requires **Install unknown apps** permission for the browser or file manager used to open the APK.
 - Most current Android phones should use the smaller `android-arm64.apk`; use the universal APK only when unsure.
-- **One-time Android reinstall:** v1.0.0 and v1.1.0 used temporary CI certificates. Uninstall either older version before installing v1.1.1. Releases after v1.1.1 can update it normally when signed with the same protected certificate.
+- Android v1.1.2 updates v1.1.1 directly. If v1.0.0 or v1.1.0 is installed, uninstall it once because those builds used temporary CI certificates.
 - Verify the downloaded file against `SHA256SUMS.txt` before installation.
 
 ## Privacy

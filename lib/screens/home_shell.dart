@@ -60,7 +60,10 @@ class _HomeShellState extends State<HomeShell> {
     var snapshot = await _diagnostics.inspect(profile: _profile);
     final observation = await widget.storage.observePublicIp(
       snapshot.publicInfo?.ip,
-      scope: '${_profile.name}:${snapshot.connectionKinds.map((kind) => kind.name).join('_')}',
+      scope: networkObservationScope(
+        snapshot,
+        profileName: _profile.name,
+      ),
     );
     snapshot = snapshot.withIpObservation(observation);
     if (!mounted) return;

@@ -25,6 +25,7 @@ class NetworkDiagnosticService {
     final wifiIp = await wifiIpFuture;
     final detectedGateway = await gatewayFuture;
     final connectionKinds = await connectionFuture;
+    final systemGateway = await _systemDefaultGateway(connectionKinds);
     final internet = await internetFuture;
     final dnsLatency = await dnsFuture;
     final publicInfo = await publicInfoFuture;
@@ -33,6 +34,7 @@ class NetworkDiagnosticService {
     final selectedGateway = _firstNonEmpty([
       profile?.gateway,
       detectedGateway,
+      systemGateway,
     ]);
     if (selectedGateway != null) {
       checks.add(await _probeWithFallback(
@@ -78,7 +80,7 @@ class NetworkDiagnosticService {
       routerWanIp: _firstNonEmpty([profile?.routerWanIp]),
       publicInfo: publicInfo,
       dnsLatencyMs: dnsLatency,
-      tailscaleDetected: local.addresses.any(_isTailscaleAddress),
+      tailscaleDetected: _tailscaleDetected(local, connectionKinds),
       checks: checks,
     );
   }
@@ -181,6 +183,33 @@ class NetworkDiagnosticService {
     return samples[samples.length ~/ 2];
   }
 
+  Future<String?> _systemDefaultGateway(List<ConnectionKind> kinds) async {
+    final localRouterConnection = kinds.contains(ConnectionKind.wifi) ||
+        kinds.contains(ConnectionKind.ethernet);
+    if (!localRouterConnection) return null;
+    try {
+      if (Platform.isWindows) {
+        final result = await Process.run(
+          'route',
+          const ['print', '-4'],
+          runInShell: false,
+        ).timeout(const Duration(seconds: 3));
+        return result.exitCode == 0
+            ? parseWindowsDefaultGateway(result.stdout.toString())
+            : null;
+      }
+      if (Platform.isAndroid || Platform.isLinux) {
+        final content = await File('/proc/net/route')
+            .readAsString()
+            .timeout(const Duration(seconds: 2));
+        return parseProcNetRouteGateway(content);
+      }
+    } on Exception {
+      return null;
+    }
+    return null;
+  }
+
   Future<EndpointCheck> _probeWithFallback({
     required String label,
     required String host,
@@ -261,6 +290,21 @@ class NetworkDiagnosticService {
     final second = int.tryParse(parts[1]);
     return second != null && second >= 64 && second <= 127;
   }
+
+  bool _tailscaleDetected(
+    _LocalNetworkData local,
+    List<ConnectionKind> connectionKinds,
+  ) {
+    final namedInterface = local.interfaces.any(
+      (interface) => interface.name.toLowerCase().contains('tailscale'),
+    );
+    final tailscaleIpv6 = local.addresses.any(
+      (address) => address.toLowerCase().startsWith('fd7a:115c:a1e0:'),
+    );
+    final vpnRange = connectionKinds.contains(ConnectionKind.vpn) &&
+        local.addresses.any(_isTailscaleAddress);
+    return namedInterface || tailscaleIpv6 || vpnRange;
+  }
 }
 
 class _LocalNetworkData {
@@ -268,4 +312,47 @@ class _LocalNetworkData {
 
   final List<String> addresses;
   final List<NetworkInterface> interfaces;
+}
+
+String? parseWindowsDefaultGateway(String routeOutput) {
+  final candidates = <({String gateway, int metric})>[];
+  final routePattern = RegExp(
+    r'^\s*0\.0\.0\.0\s+0\.0\.0\.0\s+(\d{1,3}(?:\.\d{1,3}){3})\s+'
+    r'\d{1,3}(?:\.\d{1,3}){3}\s+(\d+)\s*$',
+    multiLine: true,
+  );
+  for (final match in routePattern.allMatches(routeOutput)) {
+    final gateway = match.group(1);
+    final metric = int.tryParse(match.group(2) ?? '');
+    if (gateway != null && metric != null) {
+      candidates.add((gateway: gateway, metric: metric));
+    }
+  }
+  if (candidates.isEmpty) return null;
+  candidates.sort((a, b) => a.metric.compareTo(b.metric));
+  return candidates.first.gateway;
+}
+
+String? parseProcNetRouteGateway(String routeTable) {
+  for (final line in routeTable.split('\n').skip(1)) {
+    final fields = line.trim().split(RegExp(r'\s+'));
+    if (fields.length < 4 || fields[1] != '00000000') continue;
+    final flags = int.tryParse(fields[3], radix: 16) ?? 0;
+    if ((flags & 0x2) == 0) continue;
+    final hex = fields[2];
+    if (hex.length != 8) continue;
+    final octets = <int>[];
+    for (var index = 6; index >= 0; index -= 2) {
+      final value = int.tryParse(hex.substring(index, index + 2), radix: 16);
+      if (value == null) {
+        octets.clear();
+        break;
+      }
+      octets.add(value);
+    }
+    if (octets.length == 4 && octets.any((value) => value != 0)) {
+      return octets.join('.');
+    }
+  }
+  return null;
 }

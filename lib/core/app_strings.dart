@@ -42,7 +42,10 @@ class AppStrings {
     'ipVersion': ['আইপি ভার্সন', 'IP version'],
     'asn': ['ASN', 'ASN'],
     'organization': ['নেটওয়ার্ক প্রতিষ্ঠান', 'Network organization'],
-    'providerLocation': ['আইএসপি লোকেশন', 'ISP location'],
+    'providerLocation': [
+      'আনুমানিক ISP/IP লোকেশন',
+      'ISP/IP location (approx.)'
+    ],
     'timezone': ['টাইমজোন', 'Timezone'],
     'ipAccess': ['পাবলিক/শেয়ার্ড আইপি', 'Public/shared IP'],
     'ipStability': ['স্ট্যাটিক/ডাইনামিক অবস্থা', 'Static/dynamic status'],
@@ -58,10 +61,31 @@ class AppStrings {
       'Stable so far—confirm static status with ISP'
     ],
     'dynamicDetected': ['আইপি পরিবর্তন হয়েছে—ডাইনামিক', 'IP change detected—dynamic'],
+    'mobileCarrierStatus': [
+      'ক্যারিয়ার-নির্ধারিত শেয়ার্ড/ডাইনামিক IP—স্ট্যাটিক প্রযোজ্য নয়',
+      'Carrier-assigned shared/dynamic IP—static status not applicable'
+    ],
+    'mobileCarrierChanged': [
+      'ক্যারিয়ার IP পরিবর্তন হয়েছে—শেয়ার্ড/ডাইনামিক',
+      'Carrier IP changed—shared/dynamic'
+    ],
     'testFacts': ['বাস্তব টেস্ট তথ্য', 'Real test facts'],
     'dataTransferred': ['ব্যবহৃত টেস্ট ডাটা', 'Test data transferred'],
     'duration': ['ট্রান্সফার সময়', 'Transfer duration'],
     'healthScore': ['নেটওয়ার্ক হেলথ', 'Network health'],
+    'excellent': ['চমৎকার', 'Excellent'],
+    'good': ['ভালো', 'Good'],
+    'fair': ['মোটামুটি', 'Fair'],
+    'poor': ['দুর্বল', 'Poor'],
+    'speedQuality': ['স্পিড স্কোর', 'Speed score'],
+    'responsiveness': ['রেসপন্স স্কোর', 'Responsiveness'],
+    'stabilityQuality': ['স্থিতিশীলতা স্কোর', 'Stability score'],
+    'healthBreakdown': ['হেলথ স্কোরের হিসাব', 'Health breakdown'],
+    'latencyMethod': ['লেটেন্সি পদ্ধতি', 'Latency method'],
+    'latencyMethodValue': [
+      '১২টি HTTP নমুনার median',
+      'Median of 12 HTTP samples'
+    ],
     'actualDataNote': [
       'Generated data সত্যিই download ও upload করে ফল মাপা হয়—এটি কোনো অনুমান নয়।',
       'The result is measured by transferring generated download and upload data—not estimated.'
@@ -70,7 +94,13 @@ class AppStrings {
       'মোবাইল ডাটায় টেস্ট চলছে—নির্বাচিত mode অনুযায়ী ডাটা খরচ হবে।',
       'Testing on mobile data will consume data for the selected mode.'
     ],
-    'allLocalIps': ['সব লোকাল আইপি', 'All local IPs'],
+    'otherLocalIpv4': ['অন্যান্য লোকাল IPv4', 'Other local IPv4'],
+    'ipv6Addresses': ['IPv6 ঠিকানা', 'IPv6 addresses'],
+    'tailscaleAddresses': ['Tailscale ঠিকানা', 'Tailscale addresses'],
+    'showIp': ['IP দেখান', 'Show IP'],
+    'hideIp': ['IP আড়াল করুন', 'Hide IP'],
+    'copyIp': ['IP কপি করুন', 'Copy IP'],
+    'ipCopied': ['পাবলিক IP কপি হয়েছে', 'Public IP copied'],
     'refresh': ['রিফ্রেশ', 'Refresh'],
     'checking': ['পরীক্ষা চলছে…', 'Checking…'],
     'internet': ['ইন্টারনেট', 'Internet'],
@@ -123,6 +153,10 @@ class AppStrings {
       'Router Status পেইজের WAN IP দিলে CGNAT/shared বনাম real public IP নির্ভুলভাবে যাচাই হবে।',
       'Enter the WAN IP shown by the router to verify CGNAT/shared versus real public IP.'
     ],
-    'version': ['সংস্করণ ১.১.১', 'Version 1.1.1'],
+    'locationHint': [
+      'লোকেশনটি IP database-এর আনুমানিক ISP/POP অবস্থান; এটি GPS বা ডিভাইসের সঠিক অবস্থান নয়।',
+      'Location is an approximate ISP/POP result from an IP database—not GPS or the device\'s exact location.'
+    ],
+    'version': ['সংস্করণ ১.১.২', 'Version 1.1.2'],
   };
 }

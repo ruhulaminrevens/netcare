@@ -91,7 +91,7 @@ class SpeedTestService {
       ..maxConnectionsPerHost = 8
       ..connectionTimeout = const Duration(seconds: 10)
       ..idleTimeout = const Duration(seconds: 15)
-      ..userAgent = 'RAR-NetCare/1.1.1';
+      ..userAgent = 'RAR-NetCare/1.1.2';
     _activeClient = client;
 
     try {
@@ -175,46 +175,48 @@ class SpeedTestService {
   ) async {
     final samples = <double>[];
     var failures = 0;
-    const attempts = 10;
-    for (var index = 0; index < attempts; index++) {
+    const warmupAttempts = 2;
+    const measuredAttempts = 12;
+    const totalAttempts = warmupAttempts + measuredAttempts;
+    for (var index = 0; index < totalAttempts; index++) {
       _throwIfCancelled();
       final uri = base.replace(queryParameters: {
         ...base.queryParameters,
-        'bytes': '0',
+        'bytes': '1',
         'r': '${DateTime.now().microsecondsSinceEpoch}-$index',
       });
       final stopwatch = Stopwatch()..start();
       try {
         final request = await client.getUrl(uri).timeout(const Duration(seconds: 3));
+        request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
         request.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
         final response = await request.close().timeout(const Duration(seconds: 3));
         await response.drain<void>();
         stopwatch.stop();
-        if (response.statusCode >= 200 && response.statusCode < 400) {
+        if (index < warmupAttempts) {
+          // Ignore connection setup and TLS reuse effects in the final sample set.
+        } else if (response.statusCode >= 200 && response.statusCode < 400) {
           samples.add(stopwatch.elapsedMicroseconds / 1000);
         } else {
           failures++;
         }
       } on Exception {
-        failures++;
+        if (index >= warmupAttempts) failures++;
       }
-      onProgress?.call('Ping & jitter', 0.08 + ((index + 1) / attempts) * 0.14);
+      onProgress?.call(
+        'Ping & jitter',
+        0.08 + ((index + 1) / totalAttempts) * 0.14,
+      );
     }
     if (samples.isEmpty) {
       throw const SocketException('Latency server is unreachable');
     }
-    var jitter = 0.0;
-    for (var index = 1; index < samples.length; index++) {
-      jitter += (samples[index] - samples[index - 1]).abs();
-    }
-    if (samples.length > 1) jitter /= samples.length - 1;
-
-    final sorted = [...samples]..sort();
-    final trimmed = sorted.length > 4
-        ? sorted.sublist(1, sorted.length - 1)
-        : sorted;
-    final ping = trimmed.reduce((a, b) => a + b) / trimmed.length;
-    return (ping, jitter, failures * 100 / attempts);
+    final summary = summarizeLatencySamples(samples);
+    return (
+      summary.pingMs,
+      summary.jitterMs,
+      failures * 100 / measuredAttempts,
+    );
   }
 
   Future<_TransferMeasurement> _download(
@@ -306,14 +308,36 @@ class SpeedTestService {
   }
 
   String _serverName(PublicIpInfo? info, String fallback) {
-    final parts = <String>[];
-    for (final value in [info?.city, info?.edge]) {
-      if (value != null && value.trim().isNotEmpty && !parts.contains(value.trim())) {
-        parts.add(value.trim());
-      }
-    }
-    return parts.isEmpty ? fallback : parts.join(' · ');
+    final edge = info?.edge?.trim();
+    return edge == null || edge.isEmpty ? fallback : '$fallback · $edge';
   }
+}
+
+typedef LatencySummary = ({double pingMs, double jitterMs});
+
+LatencySummary summarizeLatencySamples(List<double> chronologicalSamples) {
+  if (chronologicalSamples.isEmpty) {
+    return (pingMs: 0, jitterMs: 0);
+  }
+  final ping = _median(chronologicalSamples);
+  if (chronologicalSamples.length == 1) {
+    return (pingMs: ping, jitterMs: 0);
+  }
+  final deltas = <double>[];
+  for (var index = 1; index < chronologicalSamples.length; index++) {
+    deltas.add(
+      (chronologicalSamples[index] - chronologicalSamples[index - 1]).abs(),
+    );
+  }
+  return (pingMs: ping, jitterMs: _median(deltas));
+}
+
+double _median(List<double> values) {
+  final sorted = [...values]..sort();
+  final middle = sorted.length ~/ 2;
+  return sorted.length.isOdd
+      ? sorted[middle]
+      : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
 class _TransferMeasurement {

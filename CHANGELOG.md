@@ -2,6 +2,25 @@
 
 All notable changes are documented here.
 
+## [1.1.2] - 2026-09-01
+
+### Accuracy and detection
+
+- Rebalanced the 100-point health score into speed, responsiveness, and stability components so one latency spike cannot erase valid throughput results.
+- Replaced average HTTP latency and jitter with 12 measured samples, warm-up exclusion, median latency, and median chronological jitter.
+- Isolated public-IP history by connection type, ISP ASN, gateway, and optional profile instead of mixing different Wi-Fi and mobile networks.
+- Added mobile-specific carrier/shared IP status instead of suggesting that a mobile address may be contractually static.
+- Corrected the test-server label to show the Cloudflare edge code rather than the IP-geolocation city.
+- Added Windows default-route and Android/Linux route-table gateway detection for Wi-Fi and Ethernet/LAN.
+- Improved Tailscale detection so carrier CGNAT addresses alone do not create a VPN false positive.
+
+### Privacy and interface
+
+- Masked the public IP by default with explicit show/hide and copy controls.
+- Labeled ISP/IP location as approximate and clarified that it is not GPS or an exact device location.
+- Grouped active IPv4, other IPv4, IPv6, and Tailscale addresses for cleaner mobile and desktop layouts.
+- Added green, blue, amber, and red health colors plus a visible score breakdown.
+
 ## [1.1.1] - 2026-09-01
 
 ### Changed

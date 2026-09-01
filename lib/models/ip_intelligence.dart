@@ -162,6 +162,18 @@ bool isPublicIpv4(String? address) {
   return octets[0] != 0 && octets[0] != 127 && octets[0] < 224;
 }
 
+String maskIpAddress(String address) {
+  final value = address.trim();
+  if (value.contains(':')) {
+    final parts = value.split(':').where((part) => part.isNotEmpty).toList();
+    if (parts.length <= 2) return '••••:••••';
+    return '${parts.take(2).join(':')}:••••:••••';
+  }
+  final parts = value.split('.');
+  if (parts.length != 4) return '••••••••';
+  return '${parts[0]}.${parts[1]}.•••.•••';
+}
+
 List<int>? _ipv4Octets(String? address) {
   if (address == null) return null;
   final parts = address.trim().split('.');

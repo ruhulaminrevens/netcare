@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'ip_intelligence.dart';
 
@@ -54,15 +53,73 @@ class SpeedTestResult {
   double get testDurationSeconds =>
       (downloadDurationMs + uploadDurationMs) / 1000;
 
-  int get healthScore {
-    var score = 100.0;
-    score -= max(0, pingMs - 20) * .35;
-    score -= max(0, jitterMs - 3) * 1.2;
-    score -= (packetLossPercent ?? 0) * 12;
-    if (downloadMbps < 5) score -= (5 - downloadMbps) * 5;
-    if (uploadMbps < 2) score -= (2 - uploadMbps) * 8;
-    return score.round().clamp(0, 100).toInt();
+  double get _downloadHealthScore => switch (downloadMbps) {
+        <= 0 => 0,
+        < 5 => downloadMbps / 5 * 8,
+        < 10 => 8 + (downloadMbps - 5) / 5 * 5,
+        < 25 => 13 + (downloadMbps - 10) / 15 * 8,
+        < 50 => 21 + (downloadMbps - 25) / 25 * 4,
+        _ => 25,
+      };
+
+  double get _uploadHealthScore => switch (uploadMbps) {
+        <= 0 => 0,
+        < 2 => uploadMbps / 2 * 4,
+        < 5 => 4 + (uploadMbps - 2) / 3 * 4,
+        < 10 => 8 + (uploadMbps - 5) / 5 * 4,
+        < 20 => 12 + (uploadMbps - 10) / 10 * 3,
+        _ => 15,
+      };
+
+  double get _latencyHealthScore => switch (pingMs) {
+        <= 20 => 30,
+        < 50 => 30 - (pingMs - 20) / 30 * 4,
+        < 100 => 26 - (pingMs - 50) / 50 * 6,
+        < 200 => 20 - (pingMs - 100) / 100 * 10,
+        < 400 => 10 - (pingMs - 200) / 200 * 8,
+        < 1000 => 2 - (pingMs - 400) / 600 * 2,
+        _ => 0,
+      };
+
+  double get _jitterHealthScore => switch (jitterMs) {
+        <= 3 => 20,
+        < 10 => 20 - (jitterMs - 3) / 7 * 4,
+        < 20 => 16 - (jitterMs - 10) / 10 * 4,
+        < 40 => 12 - (jitterMs - 20) / 20 * 6,
+        < 80 => 6 - (jitterMs - 40) / 40 * 5,
+        < 200 => 1 - (jitterMs - 80) / 120,
+        _ => 0,
+      };
+
+  double get _lossHealthScore {
+    final loss = packetLossPercent ?? 0;
+    return switch (loss) {
+      <= 0 => 10,
+      < 1 => 10 - loss * 2,
+      < 3 => 8 - (loss - 1) / 2 * 3,
+      < 5 => 5 - (loss - 3) / 2 * 3,
+      < 10 => 2 - (loss - 5) / 5 * 2,
+      _ => 0,
+    };
   }
+
+  int get speedHealthScore =>
+      (_downloadHealthScore + _uploadHealthScore).round().clamp(0, 40).toInt();
+
+  int get responsivenessHealthScore =>
+      _latencyHealthScore.round().clamp(0, 30).toInt();
+
+  int get stabilityHealthScore =>
+      (_jitterHealthScore + _lossHealthScore).round().clamp(0, 30).toInt();
+
+  int get healthScore => (_downloadHealthScore +
+          _uploadHealthScore +
+          _latencyHealthScore +
+          _jitterHealthScore +
+          _lossHealthScore)
+      .round()
+      .clamp(0, 100)
+      .toInt();
 
   String get healthGrade => switch (healthScore) {
         >= 90 => 'Excellent',

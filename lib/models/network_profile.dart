@@ -155,3 +155,26 @@ class NetworkSnapshot {
     );
   }
 }
+
+String networkObservationScope(
+  NetworkSnapshot snapshot, {
+  String profileName = '',
+}) {
+  final kinds = snapshot.connectionKinds.map((kind) => kind.name).toList()
+    ..sort();
+  final parts = <String>['v2', kinds.join('+')];
+  final trimmedProfile = profileName.trim();
+  if (trimmedProfile.isNotEmpty) parts.add('profile:$trimmedProfile');
+  final asn = snapshot.publicInfo?.asn;
+  if (asn != null) {
+    parts.add('asn:$asn');
+  } else {
+    final provider = snapshot.publicInfo?.providerName?.trim();
+    if (provider != null && provider.isNotEmpty) parts.add('provider:$provider');
+  }
+  final gateway = snapshot.gateway?.trim();
+  if (!snapshot.isMobile && gateway != null && gateway.isNotEmpty) {
+    parts.add('gateway:$gateway');
+  }
+  return parts.join('|');
+}

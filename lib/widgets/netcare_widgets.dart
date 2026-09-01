@@ -99,21 +99,24 @@ class StatusPill extends StatelessWidget {
   const StatusPill({
     required this.label,
     required this.positive,
+    this.color,
     super.key,
   });
 
   final String label;
   final bool positive;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final color = positive ? const Color(0xFF31D6C4) : const Color(0xFFFF6B6B);
+    final effectiveColor =
+        color ?? (positive ? const Color(0xFF31D6C4) : const Color(0xFFFF6B6B));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: .12),
+        color: effectiveColor.withValues(alpha: .12),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: .35)),
+        border: Border.all(color: effectiveColor.withValues(alpha: .35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -121,12 +124,18 @@ class StatusPill extends StatelessWidget {
           Container(
             width: 7,
             height: 7,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: effectiveColor,
+              shape: BoxShape.circle,
+            ),
           ),
           const SizedBox(width: 7),
           Text(
             label,
-            style: TextStyle(color: color, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: effectiveColor,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),

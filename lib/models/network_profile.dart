@@ -164,13 +164,17 @@ String networkObservationScope(
     ..sort();
   final parts = <String>['v2', kinds.join('+')];
   final trimmedProfile = profileName.trim();
-  if (trimmedProfile.isNotEmpty) parts.add('profile:$trimmedProfile');
+  if (trimmedProfile.isNotEmpty) {
+    parts.add('profile:$trimmedProfile');
+  }
   final asn = snapshot.publicInfo?.asn;
   if (asn != null) {
     parts.add('asn:$asn');
   } else {
     final provider = snapshot.publicInfo?.providerName?.trim();
-    if (provider != null && provider.isNotEmpty) parts.add('provider:$provider');
+    if (provider != null && provider.isNotEmpty) {
+      parts.add('provider:$provider');
+    }
   }
   final gateway = snapshot.gateway?.trim();
   if (!snapshot.isMobile && gateway != null && gateway.isNotEmpty) {

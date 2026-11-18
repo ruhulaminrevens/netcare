@@ -40,12 +40,17 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 35
           target: google_apis
           arch: x86_64
           disable-animations: true
           script: |
             adb shell getprop ro.product.cpu.abilist
             adb install previous/*.apk
+            adb shell am start -W -n com.ruhulaminrevens.ruhul_netcare/.MainActivity
+            sleep 5
+            adb shell pidof com.ruhulaminrevens.ruhul_netcare || adb logcat -b crash -d -t 80
+            adb shell am force-stop com.ruhulaminrevens.ruhul_netcare
+            adb logcat -c
             adb install -r signed/*.apk
             python3 .github/scripts/android_monitor_smoke.py

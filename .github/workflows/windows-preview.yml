@@ -25,6 +25,12 @@ jobs:
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
       - run: flutter build windows --release
+      - name: Check Windows usage reader
+        shell: pwsh
+        run: |
+          $output = & "build/windows/x64/runner/Release/netcare_usage.exe"
+          if ($LASTEXITCODE -ne 0) { throw "Windows usage reader failed" }
+          $output | ConvertFrom-Json | Out-Null
       - name: Smoke test app launch
         shell: pwsh
         run: |
@@ -44,12 +50,12 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "dist/RAR-NetCare-Windows-Monitor-Portable-x64.zip"
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "dist/RAR-NetCare-1.2.0-Portable-x64.zip"
           $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $compiler)) {
             choco install innosetup --yes --no-progress
           }
-          & $compiler "/FRAR-NetCare-Windows-Monitor-Setup-x64" installer/windows/netcare.iss
+          & $compiler "/FRAR-NetCare-1.2.0-Setup-x64" installer/windows/netcare.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
           Get-ChildItem dist -File | Get-FileHash -Algorithm SHA256 | ForEach-Object {
             "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)"

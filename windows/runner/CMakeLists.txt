@@ -39,3 +39,9 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+add_executable(netcare_usage usage_reader.cpp)
+target_compile_features(netcare_usage PRIVATE cxx_std_17)
+target_compile_options(netcare_usage PRIVATE /EHsc /utf-8)
+target_link_libraries(netcare_usage PRIVATE windowsapp)
+add_dependencies(${BINARY_NAME} netcare_usage)

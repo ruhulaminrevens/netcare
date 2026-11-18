@@ -5,6 +5,7 @@
 
 #include <iphlpapi.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -97,6 +98,19 @@ MonitorBridge::MonitorBridge(flutter::BinaryMessenger* messenger,
         if (!*visible && meter_) ShowWindow(meter_, SW_HIDE);
         result->Success();
       }
+    } else if (call.method_name() == "style") {
+      const auto* fields = arguments ? std::get_if<EncodableList>(arguments) : nullptr;
+      if (!fields || fields->size() != 4) { result->Error("invalid_style"); return; }
+      size_ = std::clamp(std::get<int32_t>((*fields)[0]), 10, 24);
+      font_ = Wide(std::get<std::string>((*fields)[1]));
+      bold_ = std::get<bool>((*fields)[2]);
+      amber_ = std::get<std::string>((*fields)[3]) == "Amber";
+      if (meter_) {
+        const int dpi = static_cast<int>(GetDpiForWindow(meter_));
+        SetWindowPos(meter_, nullptr, 0, 0, MulDiv(90 + size_ * 6,dpi,96), MulDiv(18 + size_*3,dpi,96),SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        InvalidateRect(meter_, nullptr, FALSE);
+      }
+      result->Success();
     } else if (call.method_name() == "display") {
       const auto* values =
           arguments ? std::get_if<EncodableList>(arguments) : nullptr;
@@ -146,10 +160,13 @@ bool MonitorBridge::ShowOverlay() {
     const int width = MulDiv(164, dpi, 96);
     const int height = MulDiv(56, dpi, 96);
     const int margin = MulDiv(16, dpi, 96);
+    POINT position{monitor.rcWork.right - width - margin, monitor.rcWork.bottom - height - margin};
+    POINT saved{};
+    DWORD count = sizeof(saved);
+    if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\RAR NetCare", L"MeterPosition", RRF_RT_REG_BINARY, nullptr, &saved, &count) == ERROR_SUCCESS && count == sizeof(saved) && MonitorFromPoint(saved, MONITOR_DEFAULTTONULL)) position = saved;
     meter_ = CreateWindowEx(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
                             kMeterClass, L"RAR NetCare mini meter", WS_POPUP,
-                            monitor.rcWork.right - width - margin,
-                            monitor.rcWork.bottom - height - margin, width,
+                            position.x, position.y, width,
                             height, nullptr, nullptr, instance, this);
     if (!meter_) return false;
   }
@@ -168,6 +185,14 @@ LRESULT CALLBACK MonitorBridge::MeterProc(HWND hwnd, UINT message,
       reinterpret_cast<MonitorBridge*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
   if (!self) return DefWindowProc(hwnd, message, wparam, lparam);
   switch (message) {
+    case WM_EXITSIZEMOVE: {
+      RECT pos{};
+      if (GetWindowRect(hwnd, &pos)) {
+        POINT point{pos.left, pos.top};
+        RegSetKeyValueW(HKEY_CURRENT_USER, L"Software\\RAR NetCare", L"MeterPosition", REG_BINARY, &point, sizeof(point));
+      }
+      return 0;
+    }
     case WM_NCHITTEST:
       return HTCAPTION;
     case WM_MOUSEACTIVATE:
@@ -193,21 +218,21 @@ LRESULT CALLBACK MonitorBridge::MeterProc(HWND hwnd, UINT message,
       FillRect(dc, &bounds, background);
       DeleteObject(background);
       const int dpi = static_cast<int>(GetDpiForWindow(hwnd));
-      HFONT font = CreateFont(-MulDiv(15, dpi, 96), 0, 0, 0, FW_SEMIBOLD,
+      HFONT font = CreateFont(-MulDiv(self->size_, dpi, 96), 0, 0, 0, self->bold_ ? FW_BOLD : FW_NORMAL,
                               FALSE, FALSE, FALSE, DEFAULT_CHARSET,
                               OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                              CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+                              CLEARTYPE_QUALITY, DEFAULT_PITCH, self->font_.c_str());
       HGDIOBJ previous = font ? SelectObject(dc, font) : nullptr;
       SetBkMode(dc, TRANSPARENT);
-      const auto draw = [dc, dpi, &bounds](const std::wstring& text, int top,
+      const auto draw = [dc, dpi, &bounds, self](const std::wstring& text, int top,
                                            COLORREF color) {
         RECT line{MulDiv(12, dpi, 96), MulDiv(top, dpi, 96), bounds.right,
-                  MulDiv(top + 22, dpi, 96)};
+                  MulDiv(top + self->size_ + 8, dpi, 96)};
         SetTextColor(dc, color);
         DrawText(dc, text.c_str(), -1, &line, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
       };
-      draw(L"\u2193   " + self->download_, 7, RGB(109, 193, 255));
-      draw(L"\u2191   " + self->upload_, 29, RGB(69, 228, 191));
+      draw(L"\u2193   " + self->download_, 6, self->amber_ ? RGB(255, 206, 95) : RGB(109, 193, 255));
+      draw(L"\u2191   " + self->upload_, 12 + self->size_, self->amber_ ? RGB(255, 160, 110) : RGB(69, 228, 191));
       if (font) {
         SelectObject(dc, previous);
         DeleteObject(font);

@@ -1,3 +1,4 @@
+import 'meter_settings.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -88,12 +89,11 @@ class _MonitorDashboardState extends State<MonitorDashboard> {
           final trace = _paused ?? _readChart();
           final seconds = _ranges[_range]!;
           final history = seconds > 3600;
-          final adapter = monitor.adapters
-              .where((item) => item.id == monitor.adapterId)
-              .firstOrNull;
           final source = history || monitor.adapterId.isEmpty
               ? 'Automatic physical adapters'
-              : adapter?.name ?? 'Selected adapter is offline';
+              : monitor.selectedNames.isEmpty
+                  ? 'Selected adapters offline'
+                  : monitor.selectedNames;
           final qualityCaption = monitor.qualityEnabled
               ? monitor.qualityError ?? 'ICMP to 1.1.1.1 · rolling 20 probes'
               : 'Quality probes off';
@@ -386,10 +386,17 @@ class _SeriesSummary extends StatelessWidget {
       );
 }
 
-class MonitorAdapterPage extends StatelessWidget {
+class MonitorAdapterPage extends StatefulWidget {
   const MonitorAdapterPage({required this.monitor, super.key});
   final TrafficMonitor monitor;
 
+  @override
+  State<MonitorAdapterPage> createState() => _AdapterState();
+}
+
+class _AdapterState extends State<MonitorAdapterPage> {
+  TrafficMonitor get monitor => widget.monitor;
+  String search = '';
   @override
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: monitor,
@@ -401,6 +408,14 @@ class MonitorAdapterPage extends StatelessWidget {
               'Choose which adapter feeds the live graph and mini meter.',
             ),
             const SizedBox(height: 14),
+            TextField(
+                decoration: const InputDecoration(
+                    labelText: 'Search adapters',
+                    prefixIcon: Icon(Icons.search)),
+                onChanged: (v) => setState(() => search = v.toLowerCase())),
+            Text(monitor.adapterId.isEmpty
+                ? 'Monitoring active physical adapters'
+                : 'Monitoring: ${monitor.selectedNames}'),
             _adapterTile(
               '',
               'Automatic',
@@ -408,12 +423,12 @@ class MonitorAdapterPage extends StatelessWidget {
               true,
             ),
             if (monitor.error != null) Text(monitor.error!),
-            if (monitor.adapterId.isNotEmpty &&
-                !monitor.adapters.any((a) => a.id == monitor.adapterId))
+            if (monitor.adapterId.isNotEmpty && monitor.selectedNames.isEmpty)
               const ListTile(
                 title: Text('Your selected adapter is currently unavailable.'),
               ),
-            for (final adapter in monitor.adapters)
+            for (final adapter in monitor.adapters.where(
+                (a) => (a.name + a.description).toLowerCase().contains(search)))
               _adapterTile(
                 adapter.id,
                 adapter.name,
@@ -428,15 +443,21 @@ class MonitorAdapterPage extends StatelessWidget {
   Widget _adapterTile(String id, String name, String details, bool up) => Card(
         child: ListTile(
           leading: Icon(
-            monitor.adapterId == id
+            (id.isEmpty
+                    ? monitor.adapterId.isEmpty
+                    : monitor.selectedIds.contains(id))
                 ? Icons.radio_button_checked
                 : Icons.radio_button_off,
           ),
           title: Text(name),
           subtitle: Text(details),
           trailing: Icon(up ? Icons.lan_outlined : Icons.link_off),
-          selected: monitor.adapterId == id,
-          onTap: () => monitor.selectAdapter(id),
+          selected: (id.isEmpty
+              ? monitor.adapterId.isEmpty
+              : monitor.selectedIds.contains(id)),
+          onTap: () => id.isEmpty
+              ? monitor.selectAdapter(id)
+              : monitor.toggleAdapter(id),
         ),
       );
 }
@@ -571,6 +592,7 @@ class _MonitorUsagePageState extends State<MonitorUsagePage> {
                           ),
                         ],
                       ),
+                      PlanAlerts(monitor),
                       if (monitor.settingsError != null)
                         Text(monitor.settingsError!),
                     ],

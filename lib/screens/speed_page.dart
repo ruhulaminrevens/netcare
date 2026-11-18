@@ -1,3 +1,5 @@
+import 'dart:io';
+import '../widgets/speed_trace.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -33,6 +35,8 @@ class _SpeedPageState extends State<SpeedPage> {
   SpeedTestMode _mode = SpeedTestMode.balanced;
   SpeedTestResult? _result;
   bool _running = false;
+  final samples = <TraceSample>[];
+  final clock = Stopwatch();
   double _progress = 0;
   String _stage = 'Ready';
   String? _error;
@@ -47,6 +51,10 @@ class _SpeedPageState extends State<SpeedPage> {
   Future<void> _start() async {
     setState(() {
       _running = true;
+      _result = null;
+      samples.clear();
+      clock.reset();
+      clock.start();
       _progress = 0;
       _stage = widget.strings.t('checking');
       _error = null;
@@ -61,6 +69,11 @@ class _SpeedPageState extends State<SpeedPage> {
         connectionType: _connectionLabel(widget.strings, snapshot),
         ipAccessType: snapshot?.ipAccessType.name,
         ipStability: snapshot?.ipStability.name,
+        onSample: (kind, value) {
+          if (mounted)
+            setState(() => samples
+                .add(TraceSample(clock.elapsedMilliseconds, kind, value)));
+        },
         onProgress: (stage, fraction) {
           if (!mounted) return;
           setState(() {
@@ -86,8 +99,7 @@ class _SpeedPageState extends State<SpeedPage> {
   void _cancel() {
     _speedTest.cancel();
     setState(() {
-      _running = false;
-      _error = widget.strings.t('cancelled');
+      _stage = widget.strings.t('cancelled');
     });
   }
 
@@ -175,10 +187,14 @@ class _SpeedPageState extends State<SpeedPage> {
                     FilledButton.icon(
                       onPressed: _running ? _cancel : _start,
                       icon: Icon(
-                        _running ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                        _running
+                            ? Icons.stop_rounded
+                            : Icons.play_arrow_rounded,
                       ),
                       label: Text(
-                        _running ? strings.t('stopTest') : strings.t('startTest'),
+                        _running
+                            ? strings.t('stopTest')
+                            : strings.t('startTest'),
                       ),
                       style: FilledButton.styleFrom(
                         minimumSize: const Size.fromHeight(52),
@@ -214,6 +230,8 @@ class _SpeedPageState extends State<SpeedPage> {
             },
           ),
           const SizedBox(height: 18),
+          if (Platform.isWindows && samples.isNotEmpty)
+            SpeedTrace(samples: samples, result: _result),
           _IpIntelligenceCard(
             strings: strings,
             info: publicInfo,
@@ -348,7 +366,9 @@ class _IpIntelligenceCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  strings.isBangla ? 'পাবলিক IP ও ISP তথ্য' : 'Public IP & ISP intelligence',
+                  strings.isBangla
+                      ? 'পাবলিক IP ও ISP তথ্য'
+                      : 'Public IP & ISP intelligence',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -362,7 +382,8 @@ class _IpIntelligenceCard extends StatelessWidget {
                 ),
               IconButton(
                 tooltip: strings.t(showPublicIp ? 'hideIp' : 'showIp'),
-                onPressed: info?.ip.isNotEmpty == true ? onTogglePublicIp : null,
+                onPressed:
+                    info?.ip.isNotEmpty == true ? onTogglePublicIp : null,
                 icon: Icon(
                   showPublicIp
                       ? Icons.visibility_off_outlined
@@ -386,7 +407,8 @@ class _IpIntelligenceCard extends StatelessWidget {
                     : maskIpAddress(info!.ip),
           ),
           _InfoRow(label: strings.t('ipVersion'), value: info?.version ?? '—'),
-          _InfoRow(label: strings.t('provider'), value: info?.providerName ?? '—'),
+          _InfoRow(
+              label: strings.t('provider'), value: info?.providerName ?? '—'),
           _InfoRow(
             label: strings.t('organization'),
             value: info?.organization ?? '—',
@@ -458,7 +480,9 @@ class _TestFactsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          _InfoRow(label: strings.t('connection'), value: result.connectionType ?? '—'),
+          _InfoRow(
+              label: strings.t('connection'),
+              value: result.connectionType ?? '—'),
           _InfoRow(label: strings.t('server'), value: result.server ?? '—'),
           _InfoRow(
             label: strings.t('dataTransferred'),
@@ -480,7 +504,8 @@ class _TestFactsCard extends StatelessWidget {
           ),
           _InfoRow(
             label: strings.t('healthBreakdown'),
-            value: '${strings.t('speedQuality')} ${result.speedHealthScore}/40 · '
+            value:
+                '${strings.t('speedQuality')} ${result.speedHealthScore}/40 · '
                 '${strings.t('responsiveness')} '
                 '${result.responsivenessHealthScore}/30 · '
                 '${strings.t('stabilityQuality')} '
@@ -589,7 +614,8 @@ class _NetworkSnapshotCard extends StatelessWidget {
             label: strings.t('localIp'),
             value: activeIp ?? '—',
           ),
-          _InfoRow(label: strings.t('gateway'), value: snapshot?.gateway ?? '—'),
+          _InfoRow(
+              label: strings.t('gateway'), value: snapshot?.gateway ?? '—'),
           _InfoRow(
             label: strings.t('dns'),
             value: snapshot?.dnsLatencyMs == null
@@ -639,7 +665,8 @@ class _Notice extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 19),
           const SizedBox(width: 9),
-          Expanded(child: Text(text, style: Theme.of(context).textTheme.bodySmall)),
+          Expanded(
+              child: Text(text, style: Theme.of(context).textTheme.bodySmall)),
         ],
       ),
     );

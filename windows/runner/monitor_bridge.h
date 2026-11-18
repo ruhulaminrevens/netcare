@@ -19,6 +19,10 @@ class MonitorBridge {
                                     LPARAM lparam);
 
   flutter::MethodChannel<flutter::EncodableValue> channel_;
+  int size_ = 15;
+  bool bold_ = false;
+  bool amber_ = false;
+  std::wstring font_ = L"Segoe UI";
   HWND main_window_;
   HWND meter_ = nullptr;
   std::wstring download_ = L"\u2014";

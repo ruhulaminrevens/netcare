@@ -24,16 +24,16 @@ class AdapterReading {
   );
 
   factory AdapterReading.decode(Map<Object?, Object?> row) => AdapterReading(
-    row['id'] as String,
-    row['name'] as String,
-    row['description'] as String,
-    row['type'] as int,
-    row['physical'] as bool,
-    row['up'] as bool,
-    row['rx'] as int,
-    row['tx'] as int,
-    row['link'] as int,
-  );
+        row['id'] as String,
+        row['name'] as String,
+        row['description'] as String,
+        row['type'] as int,
+        row['physical'] as bool,
+        row['up'] as bool,
+        row['rx'] as int,
+        row['tx'] as int,
+        row['link'] as int,
+      );
 
   final String id, name, description;
   final int type, rx, tx, linkSpeed;
@@ -76,6 +76,55 @@ class TrafficMonitor extends ChangeNotifier {
   bool overlay = false, qualityEnabled = false;
   bool ready = false;
   String adapterId = '';
+  final options = <String, dynamic>{};
+  void changeOption(String key, dynamic value) {
+    options[key] = value;
+    if (key.startsWith('meter')) applyStyle();
+    _notify();
+    _save();
+  }
+
+  Future<void> applyStyle() async {
+    if (!overlay) return;
+    await _channel.invokeMethod<void>('style', [
+      options['meterSize'] ?? 15,
+      options['meterFont'] ?? 'Segoe UI',
+      options['meterBold'] == true,
+      options['meterColor'] ?? 'Ocean'
+    ]);
+  }
+
+  String meterRate(double bits) {
+    return switch (options['meterUnit']) {
+      'Mbps' => '${(bits / 1e6).toStringAsFixed(2)} Mbps',
+      'MB/s' => '${(bits / 8e6).toStringAsFixed(2)} MB/s',
+      'Auto bytes' => '${formatData(bits / 8)}/s',
+      _ => formatRate(bits)
+    };
+  }
+
+  String? pendingAlert;
+  void checkLimit(DateTime now) {
+    if (monthlyGb <= 0 || options['alerts'] != true) return;
+    final month = DateTime(now.year, now.month);
+    final used = _usage.values
+        .where((b) => b.hour * 3600000 >= month.millisecondsSinceEpoch)
+        .fold(0.0, (a, b) => a + b.rx + b.tx);
+    final thresholds = (options['thresholds'] as List? ?? [90])
+        .whereType<int>()
+        .toList()
+      ..sort();
+    final reached = thresholds.where((t) => used * 100 >= monthlyGb * 1e9 * t);
+    if (reached.isEmpty) return;
+    final key = '${now.year}-${now.month}:$monthlyGb:${reached.last}';
+    if (options['lastAlert'] == key) return;
+    options['lastAlert'] = key;
+    pendingAlert =
+        'Monthly data plan reached ${reached.last}% · ${formatData(used)} used';
+    SystemSound.play(SystemSoundType.alert);
+    _save();
+  }
+
   String? error, qualityError, settingsError;
   double monthlyGb = 0;
   TrafficPoint? current;
@@ -102,10 +151,11 @@ class TrafficMonitor extends ChangeNotifier {
       _preferences = await SharedPreferences.getInstance();
       final raw = jsonDecode(_preferences!.getString(_key) ?? '{}');
       if (raw is Map) {
+        if (raw['options'] is Map)
+          options.addAll(Map<String, dynamic>.from(raw['options']));
         adapterId = raw['adapter'] is String ? raw['adapter'] as String : '';
-        monthlyGb = raw['budget'] is num
-            ? (raw['budget'] as num).toDouble()
-            : 0;
+        monthlyGb =
+            raw['budget'] is num ? (raw['budget'] as num).toDouble() : 0;
         qualityEnabled = raw['quality'] == true;
         final buckets = raw['usage'];
         if (buckets is List) {
@@ -137,6 +187,18 @@ class TrafficMonitor extends ChangeNotifier {
   }
 
   Iterable<UsageBucket> get usage => _usage.values;
+
+  Set<String> get selectedIds =>
+      adapterId.split('|').where((id) => id.isNotEmpty).toSet();
+  String get selectedNames => adapters
+      .where((a) => selectedIds.contains(a.id))
+      .map((a) => a.name)
+      .join(', ');
+  void toggleAdapter(String id) {
+    final ids = selectedIds;
+    if (!ids.remove(id)) ids.add(id);
+    selectAdapter(ids.join('|'));
+  }
 
   void selectAdapter(String id) {
     if (!ready || id == adapterId) return;
@@ -171,6 +233,7 @@ class TrafficMonitor extends ChangeNotifier {
     try {
       await _channel.invokeMethod<void>('overlay', visible);
       overlay = visible;
+      await applyStyle();
       _updateOverlay();
       _notify();
     } on Exception {
@@ -184,8 +247,8 @@ class TrafficMonitor extends ChangeNotifier {
     if (!overlay) return;
     try {
       await _channel.invokeMethod<void>('display', [
-        reading == null ? '—' : formatRate(reading.rx),
-        reading == null ? '—' : formatRate(reading.tx),
+        reading == null ? '—' : meterRate(reading.rx),
+        reading == null ? '—' : meterRate(reading.tx),
       ]);
     } on Exception {
       overlay = false;
@@ -230,7 +293,7 @@ class TrafficMonitor extends ChangeNotifier {
             }
             if (adapterId.isEmpty
                 ? adapter.automatic
-                : adapter.id == adapterId) {
+                : selectedIds.contains(adapter.id)) {
               found = true;
               rx += deltaRx;
               tx += deltaTx;
@@ -254,6 +317,7 @@ class TrafficMonitor extends ChangeNotifier {
       _prune();
       if (_clock.elapsedMilliseconds - _lastSave >= 10000) {
         _lastSave = _clock.elapsedMilliseconds;
+        checkLimit(now);
         _save();
       }
     } on Exception {
@@ -286,8 +350,7 @@ class TrafficMonitor extends ChangeNotifier {
   }
 
   void _prune() {
-    final cutoff =
-        DateTime.now()
+    final cutoff = DateTime.now()
             .subtract(const Duration(days: 92))
             .millisecondsSinceEpoch ~/
         _hourMs;
@@ -311,6 +374,7 @@ class TrafficMonitor extends ChangeNotifier {
           _key,
           jsonEncode({
             'adapter': adapterId,
+            'options': options,
             'budget': monthlyGb,
             'quality': qualityEnabled,
             'usage': _usage.values.map((bucket) => bucket.toJson()).toList(),

@@ -1,0 +1,57 @@
+name: Windows preview
+
+on:
+  push:
+    branches: [netcare-windows-monitor]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build windows --release
+      - name: Smoke test app launch
+        shell: pwsh
+        run: |
+          $exe = "build/windows/x64/runner/Release/ruhul_netcare.exe"
+          $app = Start-Process $exe -PassThru
+          try {
+            if ($app.WaitForExit(8000)) { throw "NetCare exited with code $($app.ExitCode)" }
+            $app.Refresh()
+            if ($app.MainWindowHandle -eq 0) { throw "NetCare did not show its main window" }
+          } finally {
+            if (!$app.HasExited) {
+              $app.CloseMainWindow() | Out-Null
+              if (!$app.WaitForExit(5000)) { $app.Kill() }
+            }
+          }
+      - name: Package installer and portable build
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "dist/RAR-NetCare-Windows-Monitor-Portable-x64.zip"
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $compiler)) {
+            choco install innosetup --yes --no-progress
+          }
+          & $compiler "/FRAR-NetCare-Windows-Monitor-Setup-x64" installer/windows/netcare.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+          Get-ChildItem dist -File | Get-FileHash -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)"
+          } | Set-Content dist/SHA256SUMS.txt -Encoding ascii
+      - uses: actions/upload-artifact@v4
+        with:
+          name: netcare-windows-monitor
+          path: dist/
+          if-no-files-found: error

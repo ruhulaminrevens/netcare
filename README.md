@@ -88,3 +88,22 @@ Disable server-side compression for `garbage.php` and raise any reverse-proxy re
 ## License
 
 MIT © 2026 Ruhul Amin Revens. See [LICENSE](LICENSE).
+
+### Windows traffic monitor
+
+On Windows, the dashboard reads interface byte counters once per second. Automatic
+mode combines active physical Ethernet, Wi-Fi, and mobile broadband adapters. Use
+**Adapters** to monitor a specific interface, including VPN or virtual interfaces.
+The compact meter floats above other windows. Drag it to move it, or right-click it
+to restore the main app. Use **Hide mini meter** on the dashboard to dismiss it.
+
+The live chart displays the selected interface for ranges through one hour. Longer
+ranges and the data plan use recorded totals across physical adapters. Usage is
+stored locally for up to 92 days and covers time when the app is running. Traffic on
+the local network also contributes to the totals. Under **Network tools**, enable
+**Live connection quality** to send opt-in ICMP probes to 1.1.1.1 and display latency,
+jitter, and probe loss. Packet loss here refers to ICMP replies to that destination.
+
+**Wi-Fi**, **Connections**, and **Network tools** show local Windows details on
+request. Windows location permissions can affect whether the Wi-Fi command
+returns connection information.

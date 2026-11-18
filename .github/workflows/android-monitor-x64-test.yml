@@ -1,0 +1,34 @@
+name: Run Android monitor on native emulator ABI
+on:
+  push:
+    branches: [android-monitor-emulator-x64]
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build native emulator APK
+        run: |
+          flutter create . --project-name ruhul_netcare --org com.ruhulaminrevens --platforms=android
+          flutter build apk --release --split-per-abi --target-platform android-x64
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            adb install build/app/outputs/flutter-apk/app-x86_64-release.apk
+            python3 .github/scripts/android_monitor_smoke.py

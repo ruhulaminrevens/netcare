@@ -1,0 +1,99 @@
+name: Android monitor APK
+on:
+  push:
+    branches: [android-monitor-v120]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: netcare-android-monitor
+  cancel-in-progress: true
+env:
+  APP_VERSION: 1.2.0
+  FLUTTER_CHANNEL: stable
+jobs:
+  quality:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+      - name: Generate platform scaffolding
+        run: flutter create . --project-name ruhul_netcare --org com.ruhulaminrevens --platforms=android
+      - name: Install packages
+        run: flutter pub get
+      - name: Format source
+        run: dart format lib test
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+      - name: Run tests
+        run: flutter test
+
+  android:
+    name: Build Android APK
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+      - name: Generate Android scaffolding
+        run: flutter create . --project-name ruhul_netcare --org com.ruhulaminrevens --platforms=android
+      - run: flutter pub get
+      - name: Generate launcher icons
+        run: dart run flutter_launcher_icons
+      - name: Build ARM64 APK
+        run: |
+          flutter build apk --release --split-per-abi --target-platform android-arm64
+      - name: Sign and verify APKs with the persistent release key
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          RAR_NETCARE_KEY_PASSWORD: ${{ secrets.RAR_NETCARE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$RAR_NETCARE_KEY_PASSWORD"
+
+          keystore="$RUNNER_TEMP/rar-netcare-release.p12"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          chmod 600 "$keystore"
+
+          build_tools="$(ls -d "${ANDROID_HOME}"/build-tools/* | sort -V | tail -n 1)"
+          zipalign="$build_tools/zipalign"
+          apksigner="$build_tools/apksigner"
+
+          for apk in build/app/outputs/flutter-apk/app-arm64-v8a-release.apk; do
+            name="$(basename "${apk%.apk}")"
+            aligned="$RUNNER_TEMP/${name}-aligned.apk"
+            signed="$RUNNER_TEMP/${name}-signed.apk"
+
+            "$zipalign" -f -p 4 "$apk" "$aligned"
+            "$apksigner" sign \
+              --ks "$keystore" \
+              --ks-type PKCS12 \
+              --ks-key-alias rar-netcare \
+              --ks-pass env:RAR_NETCARE_KEY_PASSWORD \
+              --key-pass env:RAR_NETCARE_KEY_PASSWORD \
+              --out "$signed" \
+              "$aligned"
+            "$apksigner" verify --verbose --print-certs "$signed"
+            mv "$signed" "$apk"
+          done
+
+          rm -f "$keystore" "$RUNNER_TEMP"/*-aligned.apk
+      - name: Prepare artifact
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/RAR-NetCare-${APP_VERSION}-android-arm64.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: dist/*.apk
+          if-no-files-found: error
+

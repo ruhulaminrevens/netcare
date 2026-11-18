@@ -1,4 +1,6 @@
 import 'dart:io';
+
+import '../monitor/android_monitor.dart';
 import '../monitor/usage_stats.dart';
 import '../monitor/windows_inspector.dart';
 
@@ -145,6 +147,8 @@ class _HomeShellState extends State<HomeShell> {
         MonitorToolPage(monitor: monitor, page: WindowsToolPage.processes),
         MonitorToolPage(monitor: monitor, page: WindowsToolPage.tools),
       ],
+      if (Platform.isAndroid)
+        AndroidMonitor(active: _selectedIndex == 3, bangla: widget.isBangla),
       SettingsPage(
         monitor: monitor,
         strings: strings,
@@ -166,8 +170,8 @@ class _HomeShellState extends State<HomeShell> {
         label: monitor == null
             ? strings.t('overview')
             : widget.isBangla
-                ? 'স্পিড টেস্ট'
-                : 'Speed test',
+            ? 'স্পিড টেস্ট'
+            : 'Speed test',
       ),
       NavigationDestination(
         icon: const Icon(Icons.hub_outlined),
@@ -183,18 +187,26 @@ class _HomeShellState extends State<HomeShell> {
           label: widget.isBangla ? 'অ্যাডাপ্টার' : 'Adapters',
         ),
         const NavigationDestination(
-            icon: Icon(Icons.bar_chart), label: 'Usage stats'),
+          icon: Icon(Icons.bar_chart),
+          label: 'Usage stats',
+        ),
         NavigationDestination(
           icon: const Icon(Icons.data_usage_outlined),
           label: widget.isBangla ? 'ডেটা ব্যবহার' : 'Usage & plan',
         ),
         const NavigationDestination(icon: Icon(Icons.wifi), label: 'Wi-Fi'),
         const NavigationDestination(
-            icon: Icon(Icons.wifi_lock), label: 'Saved Wi-Fi'),
+          icon: Icon(Icons.wifi_lock),
+          label: 'Saved Wi-Fi',
+        ),
         const NavigationDestination(
-            icon: Icon(Icons.info_outline), label: 'Network info'),
+          icon: Icon(Icons.info_outline),
+          label: 'Network info',
+        ),
         const NavigationDestination(
-            icon: Icon(Icons.apps), label: 'Active process'),
+          icon: Icon(Icons.apps),
+          label: 'Active process',
+        ),
         NavigationDestination(
           icon: const Icon(Icons.account_tree_outlined),
           label: widget.isBangla ? 'কানেকশন' : 'Connections',
@@ -204,6 +216,11 @@ class _HomeShellState extends State<HomeShell> {
           label: widget.isBangla ? 'নেটওয়ার্ক টুলস' : 'Network tools',
         ),
       ],
+      if (Platform.isAndroid)
+        NavigationDestination(
+          icon: const Icon(Icons.monitor_heart_outlined),
+          label: widget.isBangla ? 'মনিটর' : 'Monitor',
+        ),
       NavigationDestination(
         icon: const Icon(Icons.settings_outlined),
         label: strings.t('settings'),
@@ -237,7 +254,8 @@ class _HomeShellState extends State<HomeShell> {
                   selectedIndex: _selectedIndex,
                   onDestinationSelected: (value) =>
                       setState(() => _selectedIndex = value),
-                  extended: monitor != null &&
+                  extended:
+                      monitor != null &&
                       MediaQuery.sizeOf(context).width >= 900,
                   minExtendedWidth: 182,
                   scrollable: true,

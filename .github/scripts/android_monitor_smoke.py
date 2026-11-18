@@ -32,6 +32,7 @@ def locate(label, tap=False, attempts=12):
 
 app = "com.ruhulaminrevens.ruhul_netcare"
 adb("shell","am","start","-W","-n",app+"/.MainActivity")
+locate("EN",tap=True)
 locate("Monitor",tap=True)
 locate("Open Usage Access")
 adb("shell","appops","set",app,"GET_USAGE_STATS","allow")

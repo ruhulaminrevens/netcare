@@ -2,6 +2,9 @@ name: Verify Android APK upgrade
 on:
   push:
     branches: [android-monitor-device-check]
+concurrency:
+  group: signed-android-monitor-smoke
+  cancel-in-progress: true
 permissions:
   contents: read
   actions: read
@@ -12,12 +15,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Fetch signed build and previous ARM64 release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          build_sha=$(git rev-parse HEAD^)
+          build_sha=$(git log -1 --format=%H -- lib/monitor/android_monitor.dart)
           run_id=$(gh run list --workflow android-monitor.yml --commit "$build_sha" --json databaseId --jq '.[0].databaseId')
           test -n "$run_id"
           gh run watch "$run_id" --exit-status --interval 20

@@ -1,0 +1,90 @@
+name: Windows preview
+
+on:
+  push:
+    branches: [netcare-windows-monitor]
+  workflow_dispatch:
+
+concurrency:
+  group: windows-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+      - run: flutter build windows --release
+      - name: Check Windows usage reader
+        shell: pwsh
+        run: |
+          $output = & "build/windows/x64/runner/Release/netcare_usage.exe"
+          if ($LASTEXITCODE -ne 0) { throw "Windows usage reader failed" }
+          $profiles = @($output | ConvertFrom-Json)
+          if ($profiles.Count -gt 0 -and $null -ne $profiles[0].id) {
+            $now = [DateTimeOffset]::UtcNow
+            $from = $now.AddDays(-1).ToUnixTimeMilliseconds()
+            $to = $now.ToUnixTimeMilliseconds()
+            $daily = & "build/windows/x64/runner/Release/netcare_usage.exe" $profiles[0].id days $from $to
+            if ($LASTEXITCODE -eq 3) { Write-Host "Windows daily accounting unavailable on this runner (E_NOTIMPL)" }
+            elseif ($LASTEXITCODE -ne 0) { throw "Daily usage query failed" }
+            else { $daily | ConvertFrom-Json | Out-Null }
+          }
+          exit 0
+      - name: Smoke test app launch
+        shell: pwsh
+        run: |
+          $exe = "build/windows/x64/runner/Release/ruhul_netcare.exe"
+          $app = Start-Process $exe -PassThru
+          try {
+            if ($app.WaitForExit(8000)) { throw "NetCare exited with code $($app.ExitCode)" }
+            $app.Refresh()
+            if ($app.MainWindowHandle -eq 0) { throw "NetCare did not show its main window" }
+          } finally {
+            if (!$app.HasExited) {
+              $app.CloseMainWindow() | Out-Null
+              if (!$app.WaitForExit(5000)) { $app.Kill() }
+            }
+          }
+      - name: Package installer and portable build
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "dist/RAR-NetCare-1.2.0-Portable-x64.zip"
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $compiler)) {
+            choco install innosetup --yes --no-progress
+          }
+          & $compiler "/FRAR-NetCare-1.2.0-Setup-x64" installer/windows/netcare.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+          Get-ChildItem dist -File | Get-FileHash -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)"
+          } | Set-Content dist/SHA256SUMS.txt -Encoding ascii
+      - name: Verify installed Windows application
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP "RAR-NetCare-Installed"
+          $setup = Start-Process dist/RAR-NetCare-1.2.0-Setup-x64.exe -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"$dest`"") -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Installer failed" }
+          if (!(Test-Path "$dest/netcare_usage.exe")) { throw "Installed usage reader missing" }
+          $app = Start-Process "$dest/ruhul_netcare.exe" -PassThru
+          try {
+            if ($app.WaitForExit(8000)) { throw "Installed app exited during launch" }
+            $app.Refresh()
+            if ($app.MainWindowHandle -eq 0) { throw "Installed main window not found" }
+          } finally { if (!$app.HasExited) { $app.CloseMainWindow() | Out-Null } }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: netcare-windows-monitor
+          path: dist/
+          if-no-files-found: error

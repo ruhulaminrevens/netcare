@@ -11,6 +11,8 @@ class SpeedTestResult {
     required this.jitterMs,
     required this.mode,
     this.packetLossPercent,
+    this.loadedDownloadMs,
+    this.loadedUploadMs,
     this.publicInfo,
     this.server,
     this.localIp,
@@ -29,6 +31,24 @@ class SpeedTestResult {
   final double uploadMbps;
   final double pingMs;
   final double jitterMs;
+  final double? loadedDownloadMs, loadedUploadMs;
+  String get bufferGrade {
+    if (loadedDownloadMs == null || loadedUploadMs == null)
+      return 'Insufficient samples';
+    final delay = (loadedDownloadMs! > loadedUploadMs!
+            ? loadedDownloadMs!
+            : loadedUploadMs!) -
+        pingMs;
+    return switch (delay) {
+      <= 5 => 'A+',
+      <= 30 => 'A',
+      <= 60 => 'B',
+      <= 200 => 'C',
+      <= 400 => 'D',
+      _ => 'F'
+    };
+  }
+
   final double? packetLossPercent;
   final String mode;
   final PublicIpInfo? publicInfo;
@@ -135,6 +155,8 @@ class SpeedTestResult {
         'pingMs': pingMs,
         'jitterMs': jitterMs,
         'packetLossPercent': packetLossPercent,
+        'loadedDownloadMs': loadedDownloadMs,
+        'loadedUploadMs': loadedUploadMs,
         'mode': mode,
         'publicInfo': publicInfo?.toJson(),
         'publicIp': publicIp,
@@ -176,6 +198,8 @@ class SpeedTestResult {
       uploadMbps: readNumber('uploadMbps'),
       pingMs: readNumber('pingMs'),
       jitterMs: readNumber('jitterMs'),
+      loadedDownloadMs: (json['loadedDownloadMs'] as num?)?.toDouble(),
+      loadedUploadMs: (json['loadedUploadMs'] as num?)?.toDouble(),
       packetLossPercent: (json['packetLossPercent'] as num?)?.toDouble(),
       mode: json['mode']?.toString() ?? 'balanced',
       publicInfo: publicInfo,

@@ -157,6 +157,6 @@ class AppStrings {
       'লোকেশনটি IP database-এর আনুমানিক ISP/POP অবস্থান; এটি GPS বা ডিভাইসের সঠিক অবস্থান নয়।',
       'Location is an approximate ISP/POP result from an IP database—not GPS or the device\'s exact location.'
     ],
-    'version': ['সংস্করণ ১.১.২', 'Version 1.1.2'],
+    'version': ['সংস্করণ ১.২.০', 'Version 1.2.0'],
   };
 }

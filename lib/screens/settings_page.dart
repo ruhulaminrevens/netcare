@@ -1,3 +1,5 @@
+import '../monitor/traffic_monitor.dart';
+import '../monitor/meter_settings.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_strings.dart';
@@ -10,9 +12,11 @@ class SettingsPage extends StatelessWidget {
     required this.darkMode,
     required this.onLanguageChanged,
     required this.onDarkModeChanged,
+    this.monitor,
     super.key,
   });
 
+  final TrafficMonitor? monitor;
   final AppStrings strings;
   final bool isBangla;
   final bool darkMode;
@@ -87,6 +91,7 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
         ),
+        if (monitor != null) MeterSettings(monitor!),
         const SizedBox(height: 28),
       ],
     );

@@ -38,8 +38,8 @@ extension SpeedTestModeDetails on SpeedTestMode {
 
   int get estimatedMegabytes =>
       ((downloadBytesPerStream * downloadStreams) +
-              (uploadBytesPerStream * uploadStreams)) ~/
-          (1024 * 1024);
+          (uploadBytesPerStream * uploadStreams)) ~/
+      (1024 * 1024);
 }
 
 class SpeedEndpointConfig {
@@ -76,6 +76,7 @@ class SpeedTestService {
     SpeedTestMode mode = SpeedTestMode.balanced,
     SpeedEndpointConfig? endpoint,
     SpeedProgress? onProgress,
+    void Function(String, double)? onSample,
     String? localIp,
     String? gateway,
     PublicIpInfo? publicInfo,
@@ -91,7 +92,7 @@ class SpeedTestService {
       ..maxConnectionsPerHost = 8
       ..connectionTimeout = const Duration(seconds: 10)
       ..idleTimeout = const Duration(seconds: 15)
-      ..userAgent = 'RAR-NetCare/1.1.2';
+      ..userAgent = 'RAR-NetCare/1.2.0';
     _activeClient = client;
 
     try {
@@ -104,15 +105,24 @@ class SpeedTestService {
       _throwIfCancelled();
 
       onProgress?.call('Ping & jitter', 0.08);
-      final latency = await _latency(client, config.pingUrl, onProgress);
+      final latency =
+          await _latency(client, config.pingUrl, onProgress, onSample);
       _throwIfCancelled();
 
       onProgress?.call('Real download', 0.25);
-      final download = await _download(client, config, mode, onProgress);
+      final down = await _underLoad(
+          client,
+          config.pingUrl,
+          'Download latency',
+          onSample,
+          () => _download(client, config, mode, onProgress, onSample));
+      final download = down.$1;
       _throwIfCancelled();
 
       onProgress?.call('Real upload', 0.72);
-      final upload = await _upload(client, config, mode, onProgress);
+      final up = await _underLoad(client, config.pingUrl, 'Upload latency',
+          onSample, () => _upload(client, config, mode, onProgress, onSample));
+      final upload = up.$1;
       _throwIfCancelled();
 
       onProgress?.call('Complete', 1);
@@ -121,6 +131,8 @@ class SpeedTestService {
         downloadMbps: download.mbps,
         uploadMbps: upload.mbps,
         pingMs: latency.$1,
+        loadedDownloadMs: down.$2,
+        loadedUploadMs: up.$2,
         jitterMs: latency.$2,
         packetLossPercent: latency.$3,
         mode: mode.key,
@@ -151,6 +163,49 @@ class SpeedTestService {
     _activeClient = null;
   }
 
+  Future<(_TransferMeasurement, double?)> _underLoad(
+      HttpClient client,
+      Uri base,
+      String label,
+      void Function(String, double)? onSample,
+      Future<_TransferMeasurement> Function() transfer) async {
+    var active = true;
+    final samples = <double>[];
+    Future<void> probe() async {
+      while (active && !_cancelled) {
+        final timer = Stopwatch()..start();
+        try {
+          final request = await client
+              .getUrl(base.replace(queryParameters: {
+                'bytes': '1',
+                'r': '${DateTime.now().microsecondsSinceEpoch}'
+              }))
+              .timeout(const Duration(seconds: 3));
+          request.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
+          final response =
+              await request.close().timeout(const Duration(seconds: 3));
+          await response.drain<void>().timeout(const Duration(seconds: 3));
+          if (active && !_cancelled && response.statusCode == 200) {
+            samples.add(timer.elapsedMicroseconds / 1000);
+            onSample?.call(label, samples.last);
+          }
+        } on Exception {/* Retain successful probes. */}
+        if (active)
+          await Future<void>.delayed(const Duration(milliseconds: 80));
+      }
+    }
+
+    final measured = transfer();
+    final probing = probe();
+    try {
+      final result = await measured;
+      return (result, samples.isEmpty ? null : _median(samples));
+    } finally {
+      active = false;
+      await probing;
+    }
+  }
+
   Future<void> _warmUp(HttpClient client, Uri base) async {
     try {
       final uri = base.replace(queryParameters: {
@@ -158,10 +213,12 @@ class SpeedTestService {
         'bytes': '${128 * 1024}',
         'r': '${DateTime.now().microsecondsSinceEpoch}-warmup',
       });
-      final request = await client.getUrl(uri).timeout(const Duration(seconds: 5));
+      final request =
+          await client.getUrl(uri).timeout(const Duration(seconds: 5));
       request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
       request.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
-      final response = await request.close().timeout(const Duration(seconds: 5));
+      final response =
+          await request.close().timeout(const Duration(seconds: 5));
       await response.drain<void>();
     } on Exception {
       // The measured requests still provide a clear error if the endpoint is down.
@@ -172,6 +229,7 @@ class SpeedTestService {
     HttpClient client,
     Uri base,
     SpeedProgress? onProgress,
+    void Function(String, double)? onSample,
   ) async {
     final samples = <double>[];
     var failures = 0;
@@ -187,16 +245,19 @@ class SpeedTestService {
       });
       final stopwatch = Stopwatch()..start();
       try {
-        final request = await client.getUrl(uri).timeout(const Duration(seconds: 3));
+        final request =
+            await client.getUrl(uri).timeout(const Duration(seconds: 3));
         request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
         request.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
-        final response = await request.close().timeout(const Duration(seconds: 3));
+        final response =
+            await request.close().timeout(const Duration(seconds: 3));
         await response.drain<void>();
         stopwatch.stop();
         if (index < warmupAttempts) {
           // Ignore connection setup and TLS reuse effects in the final sample set.
         } else if (response.statusCode >= 200 && response.statusCode < 400) {
           samples.add(stopwatch.elapsedMicroseconds / 1000);
+          onSample?.call("Idle latency", samples.last);
         } else {
           failures++;
         }
@@ -224,8 +285,10 @@ class SpeedTestService {
     SpeedEndpointConfig config,
     SpeedTestMode mode,
     SpeedProgress? onProgress,
+    void Function(String, double)? onSample,
   ) async {
     var received = 0;
+    var lastSample = 0;
     final expected = mode.downloadBytesPerStream * mode.downloadStreams;
     final stopwatch = Stopwatch()..start();
     final tasks = List.generate(mode.downloadStreams, (index) async {
@@ -239,12 +302,18 @@ class SpeedTestService {
       request.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
       final response = await request.close();
       if (response.statusCode < 200 || response.statusCode >= 400) {
-        throw HttpException('Download returned ${response.statusCode}', uri: uri);
+        throw HttpException('Download returned ${response.statusCode}',
+            uri: uri);
       }
       await for (final chunk in response) {
         _throwIfCancelled();
         received += chunk.length;
         final ratio = min(1.0, received / expected);
+        if (stopwatch.elapsedMilliseconds - lastSample >= 100 || ratio >= 1) {
+          lastSample = stopwatch.elapsedMilliseconds;
+          onSample?.call('Download',
+              megabitsPerSecond(received, stopwatch.elapsedMicroseconds));
+        }
         onProgress?.call('Real download', 0.25 + ratio * 0.42);
       }
     });
@@ -262,12 +331,14 @@ class SpeedTestService {
     SpeedEndpointConfig config,
     SpeedTestMode mode,
     SpeedProgress? onProgress,
+    void Function(String, double)? onSample,
   ) async {
     final payload = Uint8List(mode.uploadBytesPerStream);
     for (var index = 0; index < payload.length; index += 4096) {
       payload[index] = index % 251;
     }
     var sent = 0;
+    var lastSample = 0;
     final expected = mode.uploadBytesPerStream * mode.uploadStreams;
     final stopwatch = Stopwatch()..start();
     final tasks = List.generate(mode.uploadStreams, (index) async {
@@ -286,6 +357,11 @@ class SpeedTestService {
         sent += end - offset;
         if (offset % (1024 * 1024) == 0) await request.flush();
         final ratio = min(1.0, sent / expected);
+        if (stopwatch.elapsedMilliseconds - lastSample >= 100 || ratio >= 1) {
+          lastSample = stopwatch.elapsedMilliseconds;
+          onSample?.call(
+              'Upload', megabitsPerSecond(sent, stopwatch.elapsedMicroseconds));
+        }
         onProgress?.call('Real upload', 0.72 + ratio * 0.25);
       }
       final response = await request.close();

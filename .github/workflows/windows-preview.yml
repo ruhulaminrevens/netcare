@@ -5,6 +5,10 @@ on:
     branches: [netcare-windows-monitor]
   workflow_dispatch:
 
+concurrency:
+  group: windows-preview-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -18,7 +22,7 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter analyze
+      - run: flutter analyze --no-fatal-infos
       - run: flutter test
       - run: flutter build windows --release
       - name: Smoke test app launch

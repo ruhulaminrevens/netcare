@@ -81,188 +81,193 @@ class _MonitorDashboardState extends State<MonitorDashboard> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.monitor,
-    builder: (context, _) {
-      final monitor = widget.monitor;
-      final reading = monitor.current;
-      final trace = _paused ?? _readChart();
-      final seconds = _ranges[_range]!;
-      final history = seconds > 3600;
-      final adapter = monitor.adapters
-          .where((item) => item.id == monitor.adapterId)
-          .firstOrNull;
-      final source = history || monitor.adapterId.isEmpty
-          ? 'Automatic physical adapters'
-          : adapter?.name ?? 'Selected adapter is offline';
-      final qualityCaption = monitor.qualityEnabled
-          ? monitor.qualityError ?? 'ICMP to 1.1.1.1 · rolling 20 probes'
-          : 'Quality probes off';
-      return ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16,
-            runSpacing: 12,
+        listenable: widget.monitor,
+        builder: (context, _) {
+          final monitor = widget.monitor;
+          final reading = monitor.current;
+          final trace = _paused ?? _readChart();
+          final seconds = _ranges[_range]!;
+          final history = seconds > 3600;
+          final adapter = monitor.adapters
+              .where((item) => item.id == monitor.adapterId)
+              .firstOrNull;
+          final source = history || monitor.adapterId.isEmpty
+              ? 'Automatic physical adapters'
+              : adapter?.name ?? 'Selected adapter is offline';
+          final qualityCaption = monitor.qualityEnabled
+              ? monitor.qualityError ?? 'ICMP to 1.1.1.1 · rolling 20 probes'
+              : 'Quality probes off';
+          return ListView(
+            padding: const EdgeInsets.all(24),
             children: [
-              _Heading('Traffic dashboard', source),
-              FilledButton.tonalIcon(
-                onPressed: () => monitor.setOverlay(!monitor.overlay),
-                icon: Icon(
-                  monitor.overlay
-                      ? Icons.visibility_off
-                      : Icons.picture_in_picture_alt,
-                ),
-                label: Text(
-                  monitor.overlay ? 'Hide mini meter' : 'Show mini meter',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _Metric(
-                'Download',
-                reading == null ? '—' : formatRate(reading.rx),
-                _rxColor,
-              ),
-              _Metric(
-                'Upload',
-                reading == null ? '—' : formatRate(reading.tx),
-                _txColor,
-              ),
-              _Metric(
-                'Latency',
-                monitor.latency == null ? '—' : '${monitor.latency} ms',
-              ),
-              _Metric(
-                'Jitter',
-                monitor.jitter == null
-                    ? '—'
-                    : '${monitor.jitter!.toStringAsFixed(1)} ms',
-              ),
-              _Metric(
-                'Packet loss',
-                monitor.loss == null
-                    ? '—'
-                    : '${monitor.loss!.toStringAsFixed(0)}%',
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(qualityCaption),
-          if (monitor.error != null) Text(monitor.error!),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 16,
+                runSpacing: 12,
                 children: [
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: [
-                      for (final range in _ranges.keys)
-                        ChoiceChip(
-                          label: Text(range),
-                          selected: _range == range,
-                          onSelected: (_) => setState(() {
-                            _range = range;
-                            _paused = null;
-                          }),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      FilterChip(
-                        label: const Text('Download'),
-                        selected: _download,
-                        selectedColor: _rxColor.withValues(alpha: .25),
-                        onSelected: (value) =>
-                            setState(() => _download = value),
-                      ),
-                      FilterChip(
-                        label: const Text('Upload'),
-                        selected: _upload,
-                        selectedColor: _txColor.withValues(alpha: .25),
-                        onSelected: (value) => setState(() => _upload = value),
-                      ),
-                      TextButton.icon(
-                        icon: Icon(
-                          _paused == null ? Icons.pause : Icons.play_arrow,
-                        ),
-                        label: Text(
-                          _paused == null ? 'Pause graph' : 'Resume graph',
-                        ),
-                        onPressed: () => setState(() {
-                          _paused = _paused == null ? _readChart() : null;
-                        }),
-                      ),
-                      if (!history)
-                        TextButton(
-                          onPressed: () {
-                            setState(() => _paused = null);
-                            monitor.resetChart();
-                          },
-                          child: const Text('Reset graph'),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 290,
-                    width: double.infinity,
-                    child: trace.points.isEmpty
-                        ? Center(
-                            child: Text(
-                              history
-                                  ? 'No recorded usage in this range.'
-                                  : 'Waiting for adapter samples…',
-                            ),
-                          )
-                        : CustomPaint(
-                            painter: _TrafficChart(
-                              trace.points,
-                              trace.end,
-                              seconds,
-                              _download,
-                              _upload,
-                              Theme.of(context).colorScheme,
-                              history ? (seconds <= 604800 ? 3600 : 86400) : 1,
-                            ),
-                          ),
-                  ),
-                  if (trace.points.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    if (_download)
-                      _SeriesSummary('Download', trace.points.map((p) => p.rx)),
-                    if (_upload)
-                      _SeriesSummary('Upload', trace.points.map((p) => p.tx)),
-                  ],
-                  if (history)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Text(
-                        'Recorded physical-adapter traffic. Each point is an average for its recorded interval.',
-                      ),
+                  _Heading('Traffic dashboard', source),
+                  FilledButton.tonalIcon(
+                    onPressed: () => monitor.setOverlay(!monitor.overlay),
+                    icon: Icon(
+                      monitor.overlay
+                          ? Icons.visibility_off
+                          : Icons.picture_in_picture_alt,
                     ),
+                    label: Text(
+                      monitor.overlay ? 'Hide mini meter' : 'Show mini meter',
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ),
-        ],
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _Metric(
+                    'Download',
+                    reading == null ? '—' : formatRate(reading.rx),
+                    _rxColor,
+                  ),
+                  _Metric(
+                    'Upload',
+                    reading == null ? '—' : formatRate(reading.tx),
+                    _txColor,
+                  ),
+                  _Metric(
+                    'Latency',
+                    monitor.latency == null ? '—' : '${monitor.latency} ms',
+                  ),
+                  _Metric(
+                    'Jitter',
+                    monitor.jitter == null
+                        ? '—'
+                        : '${monitor.jitter!.toStringAsFixed(1)} ms',
+                  ),
+                  _Metric(
+                    'Packet loss',
+                    monitor.loss == null
+                        ? '—'
+                        : '${monitor.loss!.toStringAsFixed(0)}%',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(qualityCaption),
+              if (monitor.error != null) Text(monitor.error!),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          for (final range in _ranges.keys)
+                            ChoiceChip(
+                              label: Text(range),
+                              selected: _range == range,
+                              onSelected: (_) => setState(() {
+                                _range = range;
+                                _paused = null;
+                              }),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          FilterChip(
+                            label: const Text('Download'),
+                            selected: _download,
+                            selectedColor: _rxColor.withValues(alpha: .25),
+                            onSelected: (value) =>
+                                setState(() => _download = value),
+                          ),
+                          FilterChip(
+                            label: const Text('Upload'),
+                            selected: _upload,
+                            selectedColor: _txColor.withValues(alpha: .25),
+                            onSelected: (value) =>
+                                setState(() => _upload = value),
+                          ),
+                          TextButton.icon(
+                            icon: Icon(
+                              _paused == null ? Icons.pause : Icons.play_arrow,
+                            ),
+                            label: Text(
+                              _paused == null ? 'Pause graph' : 'Resume graph',
+                            ),
+                            onPressed: () => setState(() {
+                              _paused = _paused == null ? _readChart() : null;
+                            }),
+                          ),
+                          if (!history)
+                            TextButton(
+                              onPressed: () {
+                                setState(() => _paused = null);
+                                monitor.resetChart();
+                              },
+                              child: const Text('Reset graph'),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 290,
+                        width: double.infinity,
+                        child: trace.points.isEmpty
+                            ? Center(
+                                child: Text(
+                                  history
+                                      ? 'No recorded usage in this range.'
+                                      : 'Waiting for adapter samples…',
+                                ),
+                              )
+                            : CustomPaint(
+                                painter: _TrafficChart(
+                                  trace.points,
+                                  trace.end,
+                                  seconds,
+                                  _download,
+                                  _upload,
+                                  Theme.of(context).colorScheme,
+                                  history
+                                      ? (seconds <= 604800 ? 3600 : 86400)
+                                      : 1,
+                                ),
+                              ),
+                      ),
+                      if (trace.points.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        if (_download)
+                          _SeriesSummary(
+                              'Download', trace.points.map((p) => p.rx)),
+                        if (_upload)
+                          _SeriesSummary(
+                              'Upload', trace.points.map((p) => p.tx)),
+                      ],
+                      if (history)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Recorded physical-adapter traffic. Each point is an average for its recorded interval.',
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       );
-    },
-  );
 }
 
 class _TrafficChart extends CustomPainter {
@@ -316,12 +321,12 @@ class _TrafficChart extends CustomPainter {
         age == 0
             ? 'Now'
             : age >= 86400
-            ? '${(age / 86400).toStringAsFixed(1)}d'
-            : age >= 3600
-            ? '${(age / 3600).toStringAsFixed(1)}h'
-            : age >= 60
-            ? '${(age / 60).toStringAsFixed(1)}m'
-            : '${age}s',
+                ? '${(age / 86400).toStringAsFixed(1)}d'
+                : age >= 3600
+                    ? '${(age / 3600).toStringAsFixed(1)}h'
+                    : age >= 60
+                        ? '${(age / 60).toStringAsFixed(1)}m'
+                        : '${age}s',
         Offset(x, area.bottom + 8),
         centered: true,
       );
@@ -375,10 +380,10 @@ class _SeriesSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-    '$label   Min ${formatRate(values.reduce(math.min))}   '
-    'Avg ${formatRate(values.reduce((a, b) => a + b) / values.length)}   '
-    'Peak ${formatRate(values.reduce(math.max))}',
-  );
+        '$label   Min ${formatRate(values.reduce(math.min))}   '
+        'Avg ${formatRate(values.reduce((a, b) => a + b) / values.length)}   '
+        'Peak ${formatRate(values.reduce(math.max))}',
+      );
 }
 
 class MonitorAdapterPage extends StatelessWidget {
@@ -387,53 +392,53 @@ class MonitorAdapterPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: monitor,
-    builder: (context, _) => ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        const _Heading(
-          'Network adapters',
-          'Choose which adapter feeds the live graph and mini meter.',
+        listenable: monitor,
+        builder: (context, _) => ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            const _Heading(
+              'Network adapters',
+              'Choose which adapter feeds the live graph and mini meter.',
+            ),
+            const SizedBox(height: 14),
+            _adapterTile(
+              '',
+              'Automatic',
+              'Active physical Ethernet, Wi-Fi and mobile broadband',
+              true,
+            ),
+            if (monitor.error != null) Text(monitor.error!),
+            if (monitor.adapterId.isNotEmpty &&
+                !monitor.adapters.any((a) => a.id == monitor.adapterId))
+              const ListTile(
+                title: Text('Your selected adapter is currently unavailable.'),
+              ),
+            for (final adapter in monitor.adapters)
+              _adapterTile(
+                adapter.id,
+                adapter.name,
+                '${adapter.description}\n${adapter.physical ? 'Physical' : 'Virtual'} · '
+                '${adapter.up ? 'Up' : 'Down'} · ${formatRate(adapter.linkSpeed.toDouble())}',
+                adapter.up,
+              ),
+          ],
         ),
-        const SizedBox(height: 14),
-        _adapterTile(
-          '',
-          'Automatic',
-          'Active physical Ethernet, Wi-Fi and mobile broadband',
-          true,
-        ),
-        if (monitor.error != null) Text(monitor.error!),
-        if (monitor.adapterId.isNotEmpty &&
-            !monitor.adapters.any((a) => a.id == monitor.adapterId))
-          const ListTile(
-            title: Text('Your selected adapter is currently unavailable.'),
-          ),
-        for (final adapter in monitor.adapters)
-          _adapterTile(
-            adapter.id,
-            adapter.name,
-            '${adapter.description}\n${adapter.physical ? 'Physical' : 'Virtual'} · '
-            '${adapter.up ? 'Up' : 'Down'} · ${formatRate(adapter.linkSpeed.toDouble())}',
-            adapter.up,
-          ),
-      ],
-    ),
-  );
+      );
 
   Widget _adapterTile(String id, String name, String details, bool up) => Card(
-    child: ListTile(
-      leading: Icon(
-        monitor.adapterId == id
-            ? Icons.radio_button_checked
-            : Icons.radio_button_off,
-      ),
-      title: Text(name),
-      subtitle: Text(details),
-      trailing: Icon(up ? Icons.lan_outlined : Icons.link_off),
-      selected: monitor.adapterId == id,
-      onTap: () => monitor.selectAdapter(id),
-    ),
-  );
+        child: ListTile(
+          leading: Icon(
+            monitor.adapterId == id
+                ? Icons.radio_button_checked
+                : Icons.radio_button_off,
+          ),
+          title: Text(name),
+          subtitle: Text(details),
+          trailing: Icon(up ? Icons.lan_outlined : Icons.link_off),
+          selected: monitor.adapterId == id,
+          onTap: () => monitor.selectAdapter(id),
+        ),
+      );
 }
 
 class MonitorUsagePage extends StatefulWidget {
@@ -457,142 +462,144 @@ class _MonitorUsagePageState extends State<MonitorUsagePage> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.monitor,
-    builder: (context, _) {
-      final monitor = widget.monitor;
-      if (!_loadedBudget && monitor.ready) {
-        _loadedBudget = true;
-        if (monitor.monthlyGb > 0) _budget.text = monitor.monthlyGb.toString();
-      }
-      final now = DateTime.now();
-      final month = DateTime(now.year, now.month);
-      final days = <DateTime, UsageBucket>{};
-      var monthlyTotal = 0.0;
-      for (final bucket in monitor.usage) {
-        final start = DateTime.fromMillisecondsSinceEpoch(
-          bucket.hour * 3600000,
-        );
-        final end = start.add(const Duration(hours: 1));
-        final day = DateTime(start.year, start.month, start.day);
-        final nextDay = DateTime(day.year, day.month, day.day + 1);
-        final covered = end.isAfter(nextDay)
-            ? nextDay.difference(start).inSeconds / 3600
-            : 1.0;
-        void addDay(DateTime date, double share) {
-          final group = days.putIfAbsent(date, () => UsageBucket(0, 0, 0, 0));
-          group.rx += bucket.rx * share;
-          group.tx += bucket.tx * share;
-          if (!date.isBefore(month) && !date.isAfter(now)) {
-            monthlyTotal += (bucket.rx + bucket.tx) * share;
+        listenable: widget.monitor,
+        builder: (context, _) {
+          final monitor = widget.monitor;
+          if (!_loadedBudget && monitor.ready) {
+            _loadedBudget = true;
+            if (monitor.monthlyGb > 0)
+              _budget.text = monitor.monthlyGb.toString();
           }
-        }
+          final now = DateTime.now();
+          final month = DateTime(now.year, now.month);
+          final days = <DateTime, UsageBucket>{};
+          var monthlyTotal = 0.0;
+          for (final bucket in monitor.usage) {
+            final start = DateTime.fromMillisecondsSinceEpoch(
+              bucket.hour * 3600000,
+            );
+            final end = start.add(const Duration(hours: 1));
+            final day = DateTime(start.year, start.month, start.day);
+            final nextDay = DateTime(day.year, day.month, day.day + 1);
+            final covered = end.isAfter(nextDay)
+                ? nextDay.difference(start).inSeconds / 3600
+                : 1.0;
+            void addDay(DateTime date, double share) {
+              final group =
+                  days.putIfAbsent(date, () => UsageBucket(0, 0, 0, 0));
+              group.rx += bucket.rx * share;
+              group.tx += bucket.tx * share;
+              if (!date.isBefore(month) && !date.isAfter(now)) {
+                monthlyTotal += (bucket.rx + bucket.tx) * share;
+              }
+            }
 
-        addDay(day, covered);
-        if (covered < 1) addDay(nextDay, 1 - covered);
-      }
-      final dates = days.keys.toList()..sort((a, b) => b.compareTo(a));
-      final budget = monitor.monthlyGb * 1e9;
-      return ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          const _Heading(
-            'Usage & data plan',
-            'Totals cover physical adapters while RAR NetCare is running.',
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${formatData(monthlyTotal)} this month',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  if (budget > 0) ...[
-                    const SizedBox(height: 12),
-                    LinearProgressIndicator(
-                      value: (monthlyTotal / budget).clamp(0.0, 1.0),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      monthlyTotal >= budget
-                          ? 'Monthly data plan reached (${formatData(budget)}).'
-                          : '${formatData(budget - monthlyTotal)} remaining of ${formatData(budget)}.',
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Wrap(
-                    runSpacing: 8,
-                    spacing: 12,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+            addDay(day, covered);
+            if (covered < 1) addDay(nextDay, 1 - covered);
+          }
+          final dates = days.keys.toList()..sort((a, b) => b.compareTo(a));
+          final budget = monitor.monthlyGb * 1e9;
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              const _Heading(
+                'Usage & data plan',
+                'Totals cover physical adapters while RAR NetCare is running.',
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(
-                        width: 220,
-                        child: TextField(
-                          controller: _budget,
-                          enabled: monitor.ready,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: InputDecoration(
-                            labelText: 'Monthly limit (GB)',
-                            helperText: '0 disables the limit',
-                            errorText: _budgetError,
-                          ),
+                      Text(
+                        '${formatData(monthlyTotal)} this month',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      if (budget > 0) ...[
+                        const SizedBox(height: 12),
+                        LinearProgressIndicator(
+                          value: (monthlyTotal / budget).clamp(0.0, 1.0),
                         ),
+                        const SizedBox(height: 8),
+                        Text(
+                          monthlyTotal >= budget
+                              ? 'Monthly data plan reached (${formatData(budget)}).'
+                              : '${formatData(budget - monthlyTotal)} remaining of ${formatData(budget)}.',
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      Wrap(
+                        runSpacing: 8,
+                        spacing: 12,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 220,
+                            child: TextField(
+                              controller: _budget,
+                              enabled: monitor.ready,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              decoration: InputDecoration(
+                                labelText: 'Monthly limit (GB)',
+                                helperText: '0 disables the limit',
+                                errorText: _budgetError,
+                              ),
+                            ),
+                          ),
+                          FilledButton.tonal(
+                            onPressed: () {
+                              final text = _budget.text.trim();
+                              final value = double.tryParse(text);
+                              final valid = value != null &&
+                                  value.isFinite &&
+                                  value >= 0 &&
+                                  value <= 1e9;
+                              setState(
+                                () => _budgetError = valid
+                                    ? null
+                                    : 'Enter a limit from 0 to 1 billion GB.',
+                              );
+                              if (valid) monitor.setBudget(value);
+                            },
+                            child: const Text('Save limit'),
+                          ),
+                        ],
                       ),
-                      FilledButton.tonal(
-                        onPressed: () {
-                          final text = _budget.text.trim();
-                          final value = double.tryParse(text);
-                          final valid =
-                              value != null &&
-                              value.isFinite &&
-                              value >= 0 &&
-                              value <= 1e9;
-                          setState(
-                            () => _budgetError = valid
-                                ? null
-                                : 'Enter a limit from 0 to 1 billion GB.',
-                          );
-                          if (valid) monitor.setBudget(value);
-                        },
-                        child: const Text('Save limit'),
-                      ),
+                      if (monitor.settingsError != null)
+                        Text(monitor.settingsError!),
                     ],
                   ),
-                  if (monitor.settingsError != null)
-                    Text(monitor.settingsError!),
-                ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Recent daily usage',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          if (dates.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('No usage has been recorded yet.'),
-            ),
-          for (final date in dates.take(30))
-            ListTile(
-              title: Text(
-                MaterialLocalizations.of(context).formatFullDate(date),
+              const SizedBox(height: 12),
+              Text(
+                'Recent daily usage',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-              subtitle: Text(
-                'Down ${formatData(days[date]!.rx)} · Up ${formatData(days[date]!.tx)}',
-              ),
-              trailing: Text(formatData(days[date]!.rx + days[date]!.tx)),
-            ),
-        ],
+              if (dates.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text('No usage has been recorded yet.'),
+                ),
+              for (final date in dates.take(30))
+                ListTile(
+                  title: Text(
+                    MaterialLocalizations.of(context).formatFullDate(date),
+                  ),
+                  subtitle: Text(
+                    'Down ${formatData(days[date]!.rx)} · Up ${formatData(days[date]!.tx)}',
+                  ),
+                  trailing: Text(formatData(days[date]!.rx + days[date]!.tx)),
+                ),
+            ],
+          );
+        },
       );
-    },
-  );
 }
 
 enum WindowsToolPage { wifi, processes, tools }
@@ -624,17 +631,19 @@ class _MonitorToolPageState extends State<MonitorToolPage> {
     });
     try {
       final output = await action();
-      if (mounted)
+      if (mounted) {
         setState(
-          () => _output = output.trim().isEmpty
-              ? 'No records returned.'
-              : output.trim(),
+          () => _output =
+              output.trim().isEmpty ? 'No records returned.' : output.trim(),
         );
+      }
     } on Exception {
-      if (mounted)
+      if (mounted) {
         setState(
-          () => _output = 'The command did not complete. Check the network or Windows permissions.',
+          () => _output =
+              'The command did not complete. Check the network or Windows permissions.',
         );
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -659,18 +668,13 @@ class _MonitorToolPageState extends State<MonitorToolPage> {
     for (final match in csv.allMatches(results[1])) {
       names[match.group(2)!] = match.group(1)!.replaceAll('""', '"');
     }
-    return results[0]
-        .split('\n')
-        .map((line) {
-          final pid = RegExp(r'^\s*(?:TCP|UDP)\s+.*?\s+(\d+)\s*$')
-              .firstMatch(line)
-              ?.group(1);
-          final name = names[pid];
-          return name == null
-              ? line.trimRight()
-              : '${line.trimRight()}   $name';
-        })
-        .join('\n');
+    return results[0].split('\n').map((line) {
+      final pid = RegExp(r'^\s*(?:TCP|UDP)\s+.*?\s+(\d+)\s*$')
+          .firstMatch(line)
+          ?.group(1);
+      final name = names[pid];
+      return name == null ? line.trimRight() : '${line.trimRight()}   $name';
+    }).join('\n');
   }
 
   Future<String> _lookup() async {
@@ -680,8 +684,8 @@ class _MonitorToolPageState extends State<MonitorToolPage> {
         !RegExp(r'^[A-Za-z0-9.:-]+$').hasMatch(host)) {
       return 'Enter a valid hostname or IP address.';
     }
-    final addresses = await InternetAddress.lookup(host)
-        .timeout(const Duration(seconds: 6));
+    final addresses =
+        await InternetAddress.lookup(host).timeout(const Duration(seconds: 6));
     return addresses.map((address) => address.address).toSet().join('\n');
   }
 
@@ -696,13 +700,13 @@ class _MonitorToolPageState extends State<MonitorToolPage> {
           wifi
               ? 'Wi-Fi connection'
               : processes
-              ? 'Active connections'
-              : 'Network tools',
+                  ? 'Active connections'
+                  : 'Network tools',
           wifi
               ? 'Read the current connection, radio, channel and signal details from Windows.'
               : processes
-              ? 'Inspect local TCP and UDP endpoints with their owning PID and process name where available.'
-              : 'Run a DNS lookup or inspect the current IP configuration.',
+                  ? 'Inspect local TCP and UDP endpoints with their owning PID and process name where available.'
+                  : 'Run a DNS lookup or inspect the current IP configuration.',
         ),
         const SizedBox(height: 16),
         if (wifi || processes)
@@ -712,14 +716,14 @@ class _MonitorToolPageState extends State<MonitorToolPage> {
               onPressed: _working
                   ? null
                   : () => _run(
-                      wifi
-                          ? () => _cmd('NETSH.EXE', [
-                              'wlan',
-                              'show',
-                              'interfaces',
-                            ])
-                          : _processes,
-                    ),
+                        wifi
+                            ? () => _cmd('NETSH.EXE', [
+                                  'wlan',
+                                  'show',
+                                  'interfaces',
+                                ])
+                            : _processes,
+                      ),
               icon: const Icon(Icons.refresh),
               label: const Text('Refresh'),
             ),
@@ -779,10 +783,11 @@ class _MonitorToolPageState extends State<MonitorToolPage> {
                   TextButton.icon(
                     onPressed: () async {
                       await Clipboard.setData(ClipboardData(text: _output));
-                      if (context.mounted)
+                      if (context.mounted) {
                         ScaffoldMessenger.of(
                           context,
                         ).showSnackBar(const SnackBar(content: Text('Copied')));
+                      }
                     },
                     icon: const Icon(Icons.copy),
                     label: const Text('Copy'),
@@ -806,14 +811,14 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(title, style: Theme.of(context).textTheme.headlineMedium),
-      const SizedBox(height: 4),
-      Text(detail),
-    ],
-  );
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 4),
+          Text(detail),
+        ],
+      );
 }
 
 class _Metric extends StatelessWidget {
@@ -823,26 +828,28 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 145,
-    child: Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(color: accent, fontWeight: FontWeight.w700),
+        width: 145,
+        child: Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(color: accent, fontWeight: FontWeight.w700),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }

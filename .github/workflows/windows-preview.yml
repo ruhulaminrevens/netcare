@@ -36,9 +36,11 @@ jobs:
             $from = $now.AddDays(-1).ToUnixTimeMilliseconds()
             $to = $now.ToUnixTimeMilliseconds()
             $daily = & "build/windows/x64/runner/Release/netcare_usage.exe" $profiles[0].id days $from $to
-            if ($LASTEXITCODE -ne 0) { throw "Daily usage query failed" }
-            $daily | ConvertFrom-Json | Out-Null
+            if ($LASTEXITCODE -eq 3) { Write-Host "Windows daily accounting unavailable on this runner (E_NOTIMPL)" }
+            elseif ($LASTEXITCODE -ne 0) { throw "Daily usage query failed" }
+            else { $daily | ConvertFrom-Json | Out-Null }
           }
+          exit 0
       - name: Smoke test app launch
         shell: pwsh
         run: |
@@ -68,6 +70,19 @@ jobs:
           Get-ChildItem dist -File | Get-FileHash -Algorithm SHA256 | ForEach-Object {
             "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)"
           } | Set-Content dist/SHA256SUMS.txt -Encoding ascii
+      - name: Verify installed Windows application
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP "RAR-NetCare-Installed"
+          $setup = Start-Process dist/RAR-NetCare-1.2.0-Setup-x64.exe -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"$dest`"") -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Installer failed" }
+          if (!(Test-Path "$dest/netcare_usage.exe")) { throw "Installed usage reader missing" }
+          $app = Start-Process "$dest/ruhul_netcare.exe" -PassThru
+          try {
+            if ($app.WaitForExit(8000)) { throw "Installed app exited during launch" }
+            $app.Refresh()
+            if ($app.MainWindowHandle -eq 0) { throw "Installed main window not found" }
+          } finally { if (!$app.HasExited) { $app.CloseMainWindow() | Out-Null } }
       - uses: actions/upload-artifact@v4
         with:
           name: netcare-windows-monitor

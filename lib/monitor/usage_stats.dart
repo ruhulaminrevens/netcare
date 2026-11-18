@@ -4,7 +4,9 @@ import 'traffic_monitor.dart';
 import 'windows_inspector.dart';
 
 class UsageStats extends StatefulWidget {
-  const UsageStats({super.key});
+  const UsageStats({required this.monitor, required this.active, super.key});
+  final TrafficMonitor monitor;
+  final bool active;
   @override
   State<UsageStats> createState() => _UsageStatsState();
 }
@@ -15,6 +17,27 @@ class _UsageStatsState extends State<UsageStats> {
   String? profile;
   String view = 'Summary', message = '';
   bool busy = false;
+  static const local = 'netcare-local';
+  bool loaded = false;
+  @override
+  void didUpdateWidget(UsageStats old) {
+    super.didUpdateWidget(old);
+    if (widget.active && !loaded) {
+      loaded = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !busy) refresh();
+      });
+    }
+  }
+
+  List<InfoRow> localDays(List<DateTime> edges) {
+    final buckets = widget.monitor.usage.toList();
+    return [
+      for (var i = 0; i < edges.length - 1; i++)
+        bucketRow(buckets, edges[i], edges[i + 1])
+    ];
+  }
+
   Future<void> refresh() async {
     setState(() {
       busy = true;
@@ -22,14 +45,25 @@ class _UsageStatsState extends State<UsageStats> {
       message = '';
     });
     try {
-      final choices = await readRows(usageReader, []);
+      var choices = <InfoRow>[];
+      try {
+        choices = await readRows(usageReader, []);
+      } on Exception catch (e) {
+        message = 'Windows profiles unavailable. $e';
+      }
       if (!mounted) return;
-      profiles = choices;
-      if (!profiles.any((r) => r['id'] == profile))
-        profile = profiles.firstOrNull?['id'] as String?;
-      if (profile == null) {
-        message = 'Windows has no connection profiles available.';
-        return;
+      profiles = [
+        {'id': local, 'label': 'NetCare recordings · physical adapters'},
+        ...{for (final item in choices) item['id']: item}.values
+      ];
+      if (!profiles.any((p) => p['id'] == profile)) profile = local;
+      if (view == 'App-wise' && profile == local) {
+        if (choices.isEmpty) {
+          message =
+              'Windows has no profile with application accounting available.';
+          return;
+        }
+        profile = choices.first['id'] as String;
       }
       final now = DateTime.now();
       final boundaries = [
@@ -37,6 +71,10 @@ class _UsageStatsState extends State<UsageStats> {
           DateTime(now.year, now.month, now.day - i),
         now
       ];
+      if (profile == local) {
+        records = localDays(boundaries);
+        return;
+      }
       records = await readRows(usageReader, [
         profile!,
         view == 'App-wise' ? 'apps' : 'days',
@@ -47,7 +85,17 @@ class _UsageStatsState extends State<UsageStats> {
       if (records.isEmpty)
         message = 'Windows returned no usage records for this selection.';
     } catch (e) {
-      message = 'Windows accounting unavailable for this selection. $e';
+      message = 'Windows accounting unavailable for this profile. $e';
+      if (view != 'App-wise' && mounted) {
+        profile = local;
+        final now = DateTime.now();
+        records = localDays([
+          for (var i = days - 1; i >= 0; i--)
+            DateTime(now.year, now.month, now.day - i),
+          now
+        ]);
+        message += ' Showing NetCare recordings across physical adapters.';
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -66,7 +114,7 @@ class _UsageStatsState extends State<UsageStats> {
       Text('Usage statistics',
           style: Theme.of(context).textTheme.headlineMedium),
       const Text(
-          'Windows-recorded traffic for the selected connection profile. Coverage depends on retained Windows records.'),
+          'Choose NetCare recordings or a Windows connection profile. App-wise figures depend on Windows attribution.'),
       Wrap(
           spacing: 12,
           runSpacing: 8,
@@ -159,4 +207,22 @@ class _UsageStatsState extends State<UsageStats> {
       ]
     ]);
   }
+}
+
+InfoRow bucketRow(List<UsageBucket> buckets, DateTime start, DateTime end) {
+  var rx = 0.0, tx = 0.0;
+  for (final bucket in buckets) {
+    final from = bucket.hour * 3600000;
+    final overlap = math.min(end.millisecondsSinceEpoch, from + 3600000) -
+        math.max(start.millisecondsSinceEpoch, from);
+    if (overlap <= 0) continue;
+    // A partly recorded current hour contains only the bytes observed so far.
+    final elapsed =
+        math.min(3600000, DateTime.now().millisecondsSinceEpoch - from);
+    if (elapsed <= 0) continue;
+    final share = (overlap / elapsed).clamp(0.0, 1.0);
+    rx += bucket.rx * share;
+    tx += bucket.tx * share;
+  }
+  return {'label': start.millisecondsSinceEpoch.toString(), 'rx': rx, 'tx': tx};
 }

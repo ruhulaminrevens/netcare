@@ -74,7 +74,7 @@ int wmain(int argc, wchar_t** argv) {
     return 0;
   } catch (hresult_error const& error) {
     std::cerr << to_string(error.message());
-    return 1;
+    return error.code() == E_NOTIMPL ? 3 : 1;
   } catch (std::exception const& error) {
     std::cerr << error.what();
     return 2;

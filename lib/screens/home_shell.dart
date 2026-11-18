@@ -136,7 +136,7 @@ class _HomeShellState extends State<HomeShell> {
       HistoryPage(strings: strings, history: _history, onClear: _clearHistory),
       if (monitor != null) ...[
         MonitorAdapterPage(monitor: monitor),
-        const UsageStats(),
+        UsageStats(monitor: monitor, active: _selectedIndex == 5),
         MonitorUsagePage(monitor: monitor),
         MonitorToolPage(monitor: monitor, page: WindowsToolPage.wifi),
         const Inspector('Saved Wi-Fi'),

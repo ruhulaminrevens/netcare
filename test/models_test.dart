@@ -14,6 +14,8 @@ void main() {
       pingMs: 8.3,
       jitterMs: 1.1,
       packetLossPercent: 0,
+      loadedDownloadMs: 26,
+      loadedUploadMs: 55,
       mode: 'balanced',
       publicInfo: const PublicIpInfo(
         ip: '203.0.113.1',
@@ -32,6 +34,14 @@ void main() {
     expect(restored.downloadMbps, original.downloadMbps);
     expect(restored.timestamp, original.timestamp);
     expect(restored.isp, original.isp);
+    expect(restored.loadedDownloadMs, 26);
+    expect(restored.loadedUploadMs, 55);
+    expect(restored.bufferGrade, 'B');
+    final legacy = original.toJson()
+      ..remove('loadedDownloadMs')
+      ..remove('loadedUploadMs');
+    expect(
+        SpeedTestResult.fromJson(legacy).bufferGrade, 'Insufficient samples');
     expect(restored.location, 'Dhaka, Bangladesh');
     expect(restored.transferredMegabytes, closeTo(1.5, .001));
   });

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'traffic_monitor.dart';
@@ -11,8 +10,6 @@ class UsageStats extends StatefulWidget {
 }
 
 class _UsageStatsState extends State<UsageStats> {
-  String get reader =>
-      '${File(Platform.resolvedExecutable).parent.path}\\netcare_usage.exe';
   List<InfoRow> profiles = [], records = [];
   int days = 7;
   String? profile;
@@ -25,7 +22,7 @@ class _UsageStatsState extends State<UsageStats> {
       message = '';
     });
     try {
-      final choices = await readRows(reader, []);
+      final choices = await readRows(usageReader, []);
       if (!mounted) return;
       profiles = choices;
       if (!profiles.any((r) => r['id'] == profile))
@@ -40,7 +37,7 @@ class _UsageStatsState extends State<UsageStats> {
           DateTime(now.year, now.month, now.day - i),
         now
       ];
-      records = await readRows(reader, [
+      records = await readRows(usageReader, [
         profile!,
         view == 'App-wise' ? 'apps' : 'days',
         for (final date in boundaries) '${date.millisecondsSinceEpoch}'

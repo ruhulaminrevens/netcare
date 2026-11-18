@@ -3,6 +3,7 @@
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Networking.Connectivity.h>
 #include <algorithm>
+#include "wireless_profiles.h"
 #include <chrono>
 #include <iostream>
 #include <string>
@@ -12,7 +13,7 @@ using namespace Windows::Data::Json;
 using namespace Windows::Networking::Connectivity;
 
 static auto instant(long long ms) {
-  return clock::from_sys(std::chrono::system_clock::time_point(std::chrono::milliseconds(ms)));
+  return winrt::clock::from_sys(std::chrono::system_clock::time_point(std::chrono::milliseconds(ms)));
 }
 
 static JsonObject counts(hstring const& label, uint64_t rx, uint64_t tx) {
@@ -26,6 +27,15 @@ static JsonObject counts(hstring const& label, uint64_t rx, uint64_t tx) {
 int wmain(int argc, wchar_t** argv) {
   try {
     init_apartment(apartment_type::multi_threaded);
+    if(argc==2 && std::wstring(argv[1])==L"--wifi"){
+      std::cout << to_string(wireless::list().Stringify());
+      return 0;
+    }
+    if(argc==4 && std::wstring(argv[1])==L"--forget"){
+      wireless::forget(argv[2],argv[3]);
+      std::cout << "[]";
+      return 0;
+    }
     JsonArray result;
     auto profiles = NetworkInformation::GetConnectionProfiles();
     for (auto const& profile : profiles) {

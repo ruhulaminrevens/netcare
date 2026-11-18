@@ -30,7 +30,15 @@ jobs:
         run: |
           $output = & "build/windows/x64/runner/Release/netcare_usage.exe"
           if ($LASTEXITCODE -ne 0) { throw "Windows usage reader failed" }
-          $output | ConvertFrom-Json | Out-Null
+          $profiles = @($output | ConvertFrom-Json)
+          if ($profiles.Count -gt 0 -and $null -ne $profiles[0].id) {
+            $now = [DateTimeOffset]::UtcNow
+            $from = $now.AddDays(-1).ToUnixTimeMilliseconds()
+            $to = $now.ToUnixTimeMilliseconds()
+            $daily = & "build/windows/x64/runner/Release/netcare_usage.exe" $profiles[0].id days $from $to
+            if ($LASTEXITCODE -ne 0) { throw "Daily usage query failed" }
+            $daily | ConvertFrom-Json | Out-Null
+          }
       - name: Smoke test app launch
         shell: pwsh
         run: |

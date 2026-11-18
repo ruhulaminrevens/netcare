@@ -107,9 +107,12 @@ class TrafficMonitor extends ChangeNotifier {
   void checkLimit(DateTime now) {
     if (monthlyGb <= 0 || options['alerts'] != true) return;
     final month = DateTime(now.year, now.month);
-    final used = _usage.values
-        .where((b) => b.hour * 3600000 >= month.millisecondsSinceEpoch)
-        .fold(0.0, (a, b) => a + b.rx + b.tx);
+    final used = _usage.values.fold(0.0, (sum, bucket) {
+      final end = (bucket.hour + 1) * _hourMs;
+      final share =
+          ((end - month.millisecondsSinceEpoch) / _hourMs).clamp(0.0, 1.0);
+      return sum + share * (bucket.rx + bucket.tx);
+    });
     final thresholds = (options['thresholds'] as List? ?? [90])
         .whereType<int>()
         .toList()

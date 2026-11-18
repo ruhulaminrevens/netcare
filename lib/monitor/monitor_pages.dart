@@ -467,8 +467,9 @@ class _MonitorUsagePageState extends State<MonitorUsagePage> {
           final monitor = widget.monitor;
           if (!_loadedBudget && monitor.ready) {
             _loadedBudget = true;
-            if (monitor.monthlyGb > 0)
+            if (monitor.monthlyGb > 0) {
               _budget.text = monitor.monthlyGb.toString();
+            }
           }
           final now = DateTime.now();
           final month = DateTime(now.year, now.month);

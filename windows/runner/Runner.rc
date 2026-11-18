@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "Ruhul Amin Revens" "\0"
+            VALUE "CompanyName", "com.ruhulaminrevens" "\0"
             VALUE "FileDescription", "RAR NetCare" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "ruhul_netcare" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 Ruhul Amin Revens. All rights reserved." "\0"
             VALUE "OriginalFilename", "ruhul_netcare.exe" "\0"
-            VALUE "ProductName", "RAR NetCare" "\0"
+            VALUE "ProductName", "ruhul_netcare" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
